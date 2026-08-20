@@ -1,132 +1,189 @@
-﻿# Production-Grade IP Discovery & Availability System (NetScan)
+﻿# NetScan: Production-Grade IP Discovery & Availability System
+## Architecture & Technical Specification (Refined)
 
-A robust, API-first IP availability tracking and network discovery platform built with **FastAPI**, **PostgreSQL/SQLModel**, **Nmap multi-stage probe engine**, and a **modern web dashboard**.
+A robust, API-first IP availability tracking and network discovery platform built with **FastAPI**, **SQLModel (SQLite/PostgreSQL)**, **Nmap multi-stage probe engine**, and a **lightweight HTMX/Tailwind web dashboard**.
 
 ---
 
 ## 1. System Overview & Architecture
 
-The system reconciles real-time active network observation with managed IP pool state, categorizing addresses into explicit, safe states without making dangerous assumptions.
-
 `mermaid
 flowchart TD
-    subgraph Client & Integration
-        API_Client[External App / CI/CD / Automation]
-        UI[Web Dashboard SPA]
+    subgraph Clients & Integrations
+        API_Client[External App / CI/CD Automation]
+        UI[FastAPI + Jinja2 + HTMX Dashboard]
     end
 
-    subgraph Core Control Plane (FastAPI)
-        Auth[API Key / Bearer Auth]
-        Router[REST API & OpenAPI Layer]
-        Scheduler[Scan Scheduler / Background Worker]
-        WebhookService[Webhook Dispatcher]
+    subgraph NetScan Control Plane (FastAPI Process)
+        Auth[API Key / Bearer Authentication]
+        APIRouter[OpenAPI REST Endpoints]
+        UIRouter[HTMX Web UI Routes]
+        Scheduler[In-Process APScheduler]
+        TaskQueue[AsyncIO Background Job Queue]
+        WebhookService[Webhook Dispatcher with Payload Snapshots]
     end
 
     subgraph Storage Layer
-        DB[(PostgreSQL / SQLite)]
+        DB[(SQLModel: SQLite / PostgreSQL)]
     end
 
     subgraph Discovery Engine
         ProbePipeline[Multi-Stage Probe Pipeline]
-        NmapRunner[Nmap & ARP/ICMP/TCP Runner]
-        HeuristicClassifier[State & Confidence Classifier]
+        NmapRunner[Nmap Runner: Auto-Detect Capabilities]
+        HeuristicClassifier[State & Quarantine Classifier]
     end
 
-    API_Client & UI -->|HTTPS + Token| Auth
-    Auth --> Router
-    Router --> DB
-    Scheduler -->|Trigger Run| ProbePipeline
-    Router -->|Manual Trigger| ProbePipeline
+    API_Client -->|HTTPS + Token| Auth
+    UI -->|Session / API| UIRouter
+    Auth --> APIRouter
+    APIRouter & UIRouter --> DB
+    Scheduler -->|Cron Trigger| TaskQueue
+    APIRouter & UIRouter -->|Manual Trigger| TaskQueue
+    TaskQueue --> ProbePipeline
     ProbePipeline --> NmapRunner
     NmapRunner --> HeuristicClassifier
     HeuristicClassifier -->|State Updates & Audit Trails| DB
-    HeuristicClassifier -->|Emit Events| WebhookService
-    WebhookService -->|POST Payload| ExternalWebhooks[External Systems]
+    HeuristicClassifier -->|Emit Event + Full Snapshot| WebhookService
+    WebhookService -->|HTTP POST| ExternalEndpoints[External Webhooks]
 `
 
 ---
 
-## 2. Multi-Stage Discovery & Safe State Classification
+## 2. Agreed Architectural Decisions
 
-Standard ping tools fail because firewalls drop ICMP, causing systems to falsely label active servers as free/available. NetScan avoids this via a multi-probe confidence pipeline:
-
-### Probe Pipeline
-1. **L2 Probing (Local Subnets)**: ARP request / neighbor cache inspection (yields 100% confidence + MAC address & vendor).
-2. **L3 Probing (ICMP Sweeps)**: ICMP Echo (-PE) + Timestamp (-PP).
-3. **L4 Probing (Targeted TCP Syn Sweeps)**: Sweeps top standard ports (80, 443, 22, 445, 3389, 8080, 8443, 53).
-4. **Resolution**: Reverse DNS (PTR query) and hostname extraction.
-
-### State Machine Heuristics
-* ACTIVE_DETECTED: Responded to ARP, ICMP, or any TCP SYN probe.
-* ASSIGNED_RESERVED: Manually designated as reserved or assigned in IPAM, regardless of whether it responds.
-* UNCERTAIN_FIREWALLED: Closed/filtered TCP behavior or historically detected recently, but currently unresponsive to ping. **Never marked as free**.
-* AVAILABLE_CANDIDATE: Zero responses across all probes for **$ consecutive scan runs** (configurable, default 3) over a defined quarantine retention window.
-
----
-
-## 3. Database Schema (SQLModel / SQLAlchemy)
-
-### Key Entities
-* **Subnet / IPPool**:
-  * id, cidr (e.g., 192.168.1.0/24), 
-ame, description, scan_interval_minutes, is_active, created_at, updated_at.
-* **IPAddress**:
-  * id, subnet_id, ip (indexed), status (ACTIVE_DETECTED, AVAILABLE_CANDIDATE, ASSIGNED_RESERVED, UNCERTAIN_FIREWALLED).
-  * hostname, mac_address, mac_vendor, open_ports (JSON), discovery_method (ARP, ICMP, TCP_SYN, MANUAL).
-  * irst_seen_at, last_seen_at, last_scanned_at, consecutive_misses, custom_metadata (JSON).
-* **ScanJob**:
-  * id, subnet_id, status (QUEUED, RUNNING, COMPLETED, FAILED), started_at, completed_at, 	otal_ips, detected_ips, error_message, 	riggered_by.
-* **AuditLog / IPHistory**:
-  * id, ip_address_id, event_type (STATE_CHANGE, PROBE_DETECTED, PORT_CHANGE), old_state, 
-ew_state, aw_probe_data (JSON), 	imestamp.
-* **Webhook**:
-  * id, url, secret, events (e.g., [ip.state_changed, scan.completed]), is_active, created_at.
-* **ApiKey**:
-  * id, 
-ame, key_hash, prefix, ole (dmin, ead_write, ead_only), last_used_at, created_at.
+1. **Scanner Privileges & Fallback**:
+   * Auto-detects capabilities at runtime.
+   * If running with CAP_NET_RAW / root: executes fast L2 ARP sweeps and L4 TCP SYN stealth probes (-sS).
+   * If unprivileged: gracefully falls back to unprivileged TCP Connect sweeps (-sT) and ICMP sockets.
+2. **Safe Availability & Quarantine Policy**:
+   * An unresponsive host enters UNCERTAIN_FIREWALLED.
+   * An IP only transitions from UNCERTAIN to AVAILABLE_CANDIDATE after meeting **both** criteria:
+     - **Miss Count Threshold**: $ consecutive missed scans (configurable, default: 3).
+     - **Quarantine Window**: Elapsed time $\ge T$ hours (configurable, default: 48h) with zero positive probes.
+3. **Task Orchestration**:
+   * In-process **AsyncIO Task Queue** + **APScheduler** (no Redis or Celery broker required; low memory footprint, single-container deployment).
+4. **Database Strategy**:
+   * Configurable via DATABASE_URL (SQLite by default for instant local setup/testing, PostgreSQL for production).
+5. **Outbound Webhooks**:
+   * Delivers HTTP POST events (ip.discovered, ip.state_changed, scan.completed) containing **full IP object snapshots** and signature headers.
+6. **Web Dashboard**:
+   * Built with **FastAPI + Jinja2 + HTMX + Tailwind CSS** (zero Node.js build step, live polling, interactive CIDR IP matrix grid, and detail drawers).
+7. **Needle SLM Integration**:
+   * Reserved as an optional Phase 2 plugin for natural language queries and offline banner extraction.
 
 ---
 
-## 4. API-First Endpoints
+## 3. Data Model Schema (SQLModel)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| POST | /api/v1/auth/tokens | Manage API tokens |
-| GET/POST | /api/v1/subnets | List, create, and configure CIDR subnets |
-| GET | /api/v1/subnets/{id}/matrix | Get visual matrix of all IPs in a subnet with statuses |
-| POST | /api/v1/subnets/{id}/scan | Trigger immediate scan on a subnet |
-| GET | /api/v1/ips | Query IPs with filters (status, subnet, hostname, min_last_seen) |
-| GET | /api/v1/ips/available | Get next available IP(s) in a pool for automated provisioning |
-| GET/PATCH| /api/v1/ips/{ip} | Inspect single IP details, update reserved status or custom metadata |
-| GET | /api/v1/ips/{ip}/history | Historical timeline and audit events for an address |
-| GET/POST | /api/v1/webhooks | Register and manage outbound webhook endpoints |
-| GET | /api/v1/scans | List historical and active scan jobs |
+### Subnet (CIDR Pool)
+* id: UUID (PK)
+* cidr: String (e.g., 192.168.1.0/24, indexed)
+* 
+ame: String
+* description: String
+* scan_interval_minutes: Integer (default 60, 0 = manual only)
+* miss_threshold: Integer (default 3)
+* quarantine_hours: Integer (default 48)
+* is_active: Boolean (default True)
+* created_at, updated_at: DateTime
+
+### IPAddress
+* id: UUID (PK)
+* subnet_id: UUID (FK to Subnet)
+* ip: String (indexed)
+* status: Enum (ACTIVE_DETECTED, AVAILABLE_CANDIDATE, ASSIGNED_RESERVED, UNCERTAIN_FIREWALLED)
+* hostname: String (rDNS / NetBIOS)
+* mac_address: String (if L2 discovered)
+* mac_vendor: String (OUI resolved)
+* open_ports: JSON List (e.g., [{port: 80, service: http, state: open}])
+* discovery_method: Enum (ARP, ICMP, TCP_SYN, TCP_CONNECT, MANUAL)
+* consecutive_misses: Integer (default 0)
+* irst_seen_at: DateTime
+* last_seen_at: DateTime
+* last_scanned_at: DateTime
+* custom_metadata: JSON
+
+### ScanJob
+* id: UUID (PK)
+* subnet_id: UUID (FK)
+* status: Enum (QUEUED, RUNNING, COMPLETED, FAILED)
+* started_at, completed_at: DateTime
+* 	otal_ips: Integer
+* ctive_ips: Integer
+* uncertain_ips: Integer
+* vailable_ips: Integer
+* error_message: String
+* 	riggered_by: String (SCHEDULE, MANUAL_API, MANUAL_UI)
+
+### IPHistory / AuditLog
+* id: UUID (PK)
+* ip_address_id: UUID (FK)
+* event_type: Enum (DISCOVERED, STATE_CHANGE, PORT_CHANGE, RESERVED_TOGGLE)
+* old_status: String
+* 
+ew_status: String
+* probe_details: JSON
+* 	imestamp: DateTime
+
+### Webhook
+* id: UUID (PK)
+* url: String
+* secret: String
+* events: JSON List
+* is_active: Boolean
+* created_at: DateTime
+
+### ApiKey
+* id: UUID (PK)
+* 
+ame: String
+* key_hash: String (indexed)
+* prefix: String
+* ole: Enum (dmin, operator, ead_only)
+* last_used_at, created_at: DateTime
 
 ---
 
-## 5. Web Dashboard (Integrated UI)
+## 4. API Endpoints Specification
 
-A modern, responsive dashboard sharing the exact same REST API:
-1. **Subnet IP Matrix Grid**: Interactive tile grid representing CIDR blocks with live color coding (Active = Green, Reserved = Blue, Uncertain = Amber, Available = Slate).
-2. **IP Inspector Drawer**: Detailed view showing MAC address, vendor, open ports, reverse DNS, and chronological audit history.
-3. **Quick Provision / Available Finder**: Find next available IP widget with copy-to-clipboard and reservation toggle.
-4. **Scan Job Monitor**: Real-time progress bar for active scans and past run logs.
-5. **Webhook & API Key Manager**: UI to generate scoped tokens and test webhook payloads.
+### Authentication & Keys
+* POST /api/v1/auth/keys: Generate new API key
+* GET /api/v1/auth/keys: List active keys
+* DELETE /api/v1/auth/keys/{id}: Revoke key
+
+### Subnets & Pools
+* GET /api/v1/subnets: List all tracked subnets with summary stats
+* POST /api/v1/subnets: Add new subnet CIDR
+* GET /api/v1/subnets/{id}: Get subnet details
+* GET /api/v1/subnets/{id}/matrix: Get visual tile grid of all IPs
+* POST /api/v1/subnets/{id}/scan: Trigger immediate scan job
+
+### IP Availability & Inspection
+* GET /api/v1/ips: Search/filter IPs (by subnet, status, hostname, ports)
+* GET /api/v1/ips/available: Retrieve next $ available IPs for provisioning
+* GET /api/v1/ips/{ip}: Inspect single IP details
+* PATCH /api/v1/ips/{ip}: Mark reserved / assign metadata
+* GET /api/v1/ips/{ip}/history: Audit timeline of status & probe changes
+
+### Scans & Webhooks
+* GET /api/v1/scans: List scan jobs
+* GET /api/v1/scans/{id}: Inspect scan job progress / results
+* GET /api/v1/webhooks: List webhooks
+* POST /api/v1/webhooks: Register webhook
+* POST /api/v1/webhooks/{id}/test: Dispatch test payload
 
 ---
 
-## 6. Implementation Roadmap
+## 5. Phased Implementation Steps
 
-### Phase 1: Core Foundation & Multi-Probe Discovery
-* Scaffolding, dependency configuration (astapi, sqlmodel, uvicorn, pydantic, pscheduler, httpx).
-* Nmap multi-probe async wrapper (L2 ARP, L3 ICMP, L4 TCP SYN probes).
-* Heuristic classifier evaluating confidence levels and state transitions.
-
-### Phase 2: Central API, Workers & Webhooks
-* Token authentication & RBAC.
-* Full REST API for Subnets, IP allocation, scanning triggers, and audit logs.
-* Background scan job runner and webhook event dispatcher.
-
-### Phase 3: Web Dashboard & Integration Polish
-* Modern Single Page Application (SPA) dashboard.
-* JSON/CSV export, interactive OpenAPI docs, and end-to-end testing.
+* **Phase 1: Foundation & Discovery Engine**
+  * Project structure, settings (pydantic-settings), SQLModel schemas, and DB session manager.
+  * Async Nmap execution wrapper with capability detection and L2/L3/L4 multi-probe parsing.
+  * Safe Heuristic Classifier implementing miss counts & quarantine duration rules.
+* **Phase 2: API, Scheduler & Webhooks**
+  * API Key authentication middleware and OpenAPI endpoints.
+  * In-process background scan job runner and APScheduler integration.
+  * Outbound webhook dispatcher with snapshot payloads.
+* **Phase 3: HTMX/Tailwind Dashboard**
+  * Jinja2 templates with HTMX for live scan progress polling, CIDR visual grid, and IP inspector drawer.
+  * CSV/JSON export functionality.
