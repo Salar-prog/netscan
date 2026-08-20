@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NetScan{% endblock %} - IP Discovery & Availability</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            hover: '#273549',
+                        },
+                        status: {
+                            active: '#10b981',
+                            uncertain: '#f59e0b',
+                            reserved: '#3b82f6',
+                            available: '#64748b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.11"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .ip-tile {
+            transition: all 0.15s ease-in-out;
+        }
+        .ip-tile:hover {
+            transform: scale(1.08);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
+    <!-- Navbar -->
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i data-lucide="radar" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <a href="/" class="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">NetScan</a>
+                    <span class="text-xs px-2 py-0.5 ml-2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Production</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-1">
+                <a href="/" class="px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'subnets' %}bg-slate-800 text-white{% else %}text-slate-400 hover:bg-slate-800/50 hover:text-white{% endif %} transition flex items-center gap-1.5">
+                    <i data-lucide="network" class="w-4 h-4"></i> Subnets & Pools
+                </a>
+                <a href="/provision" class="px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'provision' %}bg-slate-800 text-white{% else %}text-slate-400 hover:bg-slate-800/50 hover:text-white{% endif %} transition flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> Available IP Finder
+                </a>
+                <a href="/scans" class="px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'scans' %}bg-slate-800 text-white{% else %}text-slate-400 hover:bg-slate-800/50 hover:text-white{% endif %} transition flex items-center gap-1.5">
+                    <i data-lucide="activity" class="w-4 h-4"></i> Scan Jobs
+                </a>
+                <a href="/settings" class="px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'settings' %}bg-slate-800 text-white{% else %}text-slate-400 hover:bg-slate-800/50 hover:text-white{% endif %} transition flex items-center gap-1.5">
+                    <i data-lucide="key" class="w-4 h-4"></i> API & Webhooks
+                </a>
+            </nav>
+
+            <div class="flex items-center space-x-3">
+                <a href="/docs" target="_blank" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 transition">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i> OpenAPI Docs
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/60 bg-slate-900/40 py-4 text-center text-xs text-slate-500">
+        <p>NetScan Engine &middot; API-First IP Discovery & Availability &middot; Built with FastAPI & Nmap</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        document.body.addEventListener('htmx:afterSwap', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

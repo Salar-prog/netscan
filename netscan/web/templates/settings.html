@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}API Keys & Webhooks{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <i data-lucide="key" class="w-6 h-6 text-indigo-400"></i> API Keys & Webhook Integrations
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">Manage programmatic access tokens and outbound event subscriptions.</p>
+    </div>
+
+    <!-- API Keys Section -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-white">API Keys</h3>
+                <p class="text-xs text-slate-400">Authenticate external CI/CD pipelines, NetBox sync scripts, or provisioning tools.</p>
+            </div>
+            <button onclick="document.getElementById('key-modal').classList.remove('hidden')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Generate Key
+            </button>
+        </div>
+
+        <div class="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
+            {% if not keys %}
+            <div class="p-6 text-center text-xs text-slate-500">No API keys created yet. Currently running in open setup mode.</div>
+            {% endif %}
+            {% for k in keys %}
+            <div class="p-4 flex items-center justify-between bg-slate-950/40 text-xs">
+                <div>
+                    <strong class="text-white font-semibold">{{ k.name }}</strong>
+                    <span class="ml-2 font-mono text-slate-400">{{ k.prefix }}...</span>
+                    <span class="ml-2 px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono uppercase text-[10px]">{{ k.role }}</span>
+                </div>
+                <div class="flex items-center space-x-3 text-slate-500 text-[11px]">
+                    <span>Last used: {{ k.last_used_at or 'Never' }}</span>
+                    <button hx-delete="/api/v1/auth/keys/{{ k.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300">
+                        Revoke
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Webhooks Section -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-white">Outbound Webhooks</h3>
+                <p class="text-xs text-slate-400">Deliver instant JSON notifications with full IP snapshots on state changes.</p>
+            </div>
+            <button onclick="document.getElementById('webhook-modal').classList.remove('hidden')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Register Webhook
+            </button>
+        </div>
+
+        <div class="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
+            {% if not webhooks %}
+            <div class="p-6 text-center text-xs text-slate-500">No webhooks registered.</div>
+            {% endif %}
+            {% for wh in webhooks %}
+            <div class="p-4 flex items-center justify-between bg-slate-950/40 text-xs">
+                <div>
+                    <strong class="text-white font-semibold">{{ wh.name }}</strong>
+                    <code class="ml-2 text-indigo-400 font-mono">{{ wh.url }}</code>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button hx-post="/api/v1/webhooks/{{ wh.id }}/test" hx-swap="none" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]">
+                        Test Payload
+                    </button>
+                    <button hx-delete="/api/v1/webhooks/{{ wh.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300 px-2 py-1">
+                        Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Generate API Key -->
+<div id="key-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-bold text-white">Generate API Key</h3>
+        <form hx-post="/api/v1/auth/keys" hx-target="body" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Key Label / Client Name</label>
+                <input type="text" name="name" required placeholder="e.g. Terraform-Automator" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Role</label>
+                <select name="role" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                    <option value="operator">Operator (Read & Scan)</option>
+                    <option value="admin">Admin (Full Access)</option>
+                    <option value="read_only">Read-Only</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button type="button" onclick="document.getElementById('key-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-800 text-slate-300 text-sm rounded-lg">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Register Webhook -->
+<div id="webhook-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-bold text-white">Register Webhook</h3>
+        <form hx-post="/api/v1/webhooks" hx-target="body" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Webhook Name</label>
+                <input type="text" name="name" required placeholder="e.g. Security SIEM Webhook" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Endpoint URL</label>
+                <input type="url" name="url" required placeholder="https://api.mycorp.com/hooks/netscan" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Signing Secret</label>
+                <input type="text" name="secret" required placeholder="Shared secret for HMAC-SHA256" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none font-mono">
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button type="button" onclick="document.getElementById('webhook-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-800 text-slate-300 text-sm rounded-lg">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">Register</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

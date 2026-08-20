@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Jobs{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <i data-lucide="activity" class="w-6 h-6 text-indigo-400"></i> Scan Job History
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">Real-time scan logs, automated scheduled probes, and execution statuses.</p>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950/60 border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                <tr>
+                    <th class="py-3 px-4">Job ID</th>
+                    <th class="py-3 px-4">Subnet</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4">Trigger</th>
+                    <th class="py-3 px-4">Results (Active / Uncertain / Free)</th>
+                    <th class="py-3 px-4">Started At</th>
+                    <th class="py-3 px-4">Completed</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                {% if not scans %}
+                <tr>
+                    <td colspan="7" class="py-8 text-center text-slate-500">No scan jobs executed yet.</td>
+                </tr>
+                {% endif %}
+                {% for s in scans %}
+                <tr class="hover:bg-slate-800/30 transition">
+                    <td class="py-3 px-4 font-mono text-slate-400">{{ str(s.id)[:8] }}...</td>
+                    <td class="py-3 px-4 font-mono font-semibold text-white">{{ s.subnet.cidr if s.subnet else 'N/A' }}</td>
+                    <td class="py-3 px-4">
+                        {% if s.status == 'COMPLETED' %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">COMPLETED</span>
+                        {% elif s.status == 'RUNNING' %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse">RUNNING</span>
+                        {% elif s.status == 'FAILED' %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">FAILED</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400">QUEUED</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-4 text-slate-300">{{ s.triggered_by }}</td>
+                    <td class="py-3 px-4 font-mono">
+                        <span class="text-emerald-400">{{ s.active_ips }}</span> / 
+                        <span class="text-amber-400">{{ s.uncertain_ips }}</span> / 
+                        <span class="text-slate-400">{{ s.available_ips }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-400">{{ s.started_at or s.created_at }}</td>
+                    <td class="py-3 px-4 text-slate-400">{{ s.completed_at or 'In Progress' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

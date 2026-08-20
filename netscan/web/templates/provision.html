@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Available IP Provisioner{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-6 h-6 text-indigo-400"></i> Available IP Provisioner
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">Quickly query and reserve verified available IP addresses for new virtual machines, containers, or static network allocations.</p>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
+        <form id="finder-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Target Subnet Pool</label>
+                <select id="subnet-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+                    {% for s in subnets %}
+                    <option value="{{ s.id }}">{{ s.cidr }} - {{ s.name }} ({{ s.stats.available }} free)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Count of IPs Needed</label>
+                <input type="number" id="count-input" value="1" min="1" max="50" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+            </div>
+            <div class="md:col-span-3">
+                <button type="button" onclick="findAvailableIPs()" class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2">
+                    <i data-lucide="search" class="w-4 h-4"></i> Query Available IPs
+                </button>
+            </div>
+        </form>
+
+        <!-- Results Box -->
+        <div id="results-box" class="hidden border-t border-slate-800 pt-6 space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Candidate Addresses Available for Assignment</h3>
+            <div id="ips-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function findAvailableIPs() {
+    const subnetId = document.getElementById('subnet-select').value;
+    const count = document.getElementById('count-input').value;
+    const res = await fetch(`/api/v1/ips/available?subnet_id=${subnetId}&count=${count}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const container = document.getElementById('ips-container');
+    container.innerHTML = '';
+    
+    data.available_ips.forEach(ip => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg p-3 text-center transition flex items-center justify-between';
+        card.innerHTML = `
+            <span class="font-mono font-bold text-emerald-400 text-sm">${ip}</span>
+            <button onclick="navigator.clipboard.writeText('${ip}'); this.innerText='Copied!';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded">Copy</button>
+        `;
+        container.appendChild(card);
+    });
+
+    document.getElementById('results-box').classList.remove('hidden');
+}
+</script>
+{% endblock %}
