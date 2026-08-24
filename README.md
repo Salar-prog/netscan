@@ -26,12 +26,26 @@ NetScan reconciles active network probes (L2 ARP, L3 ICMP, L4 TCP SYN) with mana
 
 ```bash
 pip install -e .
+netscan serve
+```
+
+Or with uvicorn directly:
+
+```bash
 uvicorn netscan.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 - Dashboard: http://localhost:8000/
 - Swagger: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+### CLI Usage
+
+```
+netscan serve --host 0.0.0.0 --port 8000 --dashboard
+netscan serve --no-dashboard    # API-only, no web UI
+netscan serve --reload          # Development mode with auto-reload
+```
 
 ### Docker
 

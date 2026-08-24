@@ -15,7 +15,6 @@ from netscan.config import settings
 from netscan.db import init_db, engine
 from netscan.limiter import limiter
 from netscan.services.scheduler_service import scheduler
-from netscan.web.views import web_router
 
 
 access_logger = logging.getLogger("netscan.access")
@@ -105,46 +104,62 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
-app = FastAPI(
-    title="NetScan API",
-    description="Production-Grade IP Discovery and Availability Platform",
-    version="0.1.0",
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def create_app(dashboard: bool = True) -> FastAPI:
+    """Create and configure the FastAPI application.
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.add_middleware(AccessLogMiddleware)
+    Args:
+        dashboard: If True, include the web dashboard routes.
+    """
+    app = FastAPI(
+        title="NetScan API",
+        description="Production-Grade IP Discovery and Availability Platform",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url="/docs",
+        redoc_url="/redoc",
+    )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Mount Routers
-app.include_router(api_v1_router)
-app.include_router(web_router)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(AccessLogMiddleware)
+
+    # Mount API router (always loaded)
+    app.include_router(api_v1_router)
+
+    # Mount web dashboard (optional plugin)
+    if dashboard:
+        from netscan.web.views import web_router
+
+        app.include_router(web_router)
+
+    @app.get("/health", tags=["System"])
+    @limiter.exempt
+    def health_check(request: Request):
+        checks = {"database": "ok", "nmap": "ok"}
+        status_code = "healthy"
+
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception:
+            checks["database"] = "unavailable"
+            status_code = "degraded"
+
+        if not shutil.which("nmap"):
+            checks["nmap"] = "not found"
+            status_code = "degraded"
+
+        return {"status": status_code, "service": "NetScan", "version": "0.1.0", "checks": checks}
+
+    return app
 
 
-@app.get("/health", tags=["System"])
-@limiter.exempt
-def health_check(request: Request):
-    checks = {"database": "ok", "nmap": "ok"}
-    status_code = "healthy"
-
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-    except Exception:
-        checks["database"] = "unavailable"
-        status_code = "degraded"
-
-    if not shutil.which("nmap"):
-        checks["nmap"] = "not found"
-        status_code = "degraded"
-
-    return {"status": status_code, "service": "NetScan", "version": "0.1.0", "checks": checks}
+# Default app instance for backward compatibility (uvicorn netscan.main:app)
+app = create_app()

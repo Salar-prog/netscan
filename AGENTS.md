@@ -15,7 +15,13 @@ NetScan is a production-grade IP discovery and availability tracking platform. I
 # Install with test dependencies
 pip install -e ".[test]"
 
-# Run dev server
+# Run dev server (with dashboard)
+netscan serve --reload
+
+# Run API-only server (no dashboard)
+netscan serve --no-dashboard
+
+# Or use uvicorn directly
 uvicorn netscan.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Run tests
@@ -55,6 +61,7 @@ netscan/
   db.py            # Engine + get_session dependency
   limiter.py       # Shared slowapi RateLimiter instance
   main.py          # FastAPI app factory, lifespan, middleware, rate limiting
+  cli.py           # Click CLI: netscan serve --dashboard/--no-dashboard
 tests/             # pytest suite (conftest.py has shared fixtures)
 alembic/           # DB migrations
 ```

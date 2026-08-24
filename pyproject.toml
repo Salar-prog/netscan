@@ -18,7 +18,11 @@ dependencies = [
     "python-multipart>=0.0.9",
     "slowapi>=0.1.9",
     "alembic>=1.13.0",
+    "click>=8.0",
 ]
+
+[project.scripts]
+netscan = "netscan.cli:main"
 
 [project.optional-dependencies]
 test = [
