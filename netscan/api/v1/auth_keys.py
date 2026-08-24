@@ -1,9 +1,10 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from netscan.api.auth import generate_api_key, get_current_api_key
+from netscan.api.auth import generate_api_key, get_current_api_key, require_role
 from netscan.db import get_session
 from netscan.models import ApiKey, Role
 
@@ -15,7 +16,17 @@ class ApiKeyCreate(BaseModel):
     role: Role = Role.OPERATOR
 
 
-@router.get("", response_model=List[ApiKey])
+class ApiKeyResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    prefix: str
+    role: Role
+    is_active: bool
+    last_used_at: Optional[datetime]
+    created_at: datetime
+
+
+@router.get("", response_model=List[ApiKeyResponse])
 def list_keys(
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),
@@ -27,7 +38,7 @@ def list_keys(
 def create_api_key(
     payload: ApiKeyCreate,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN)),
 ):
     raw_key, key_hash, prefix = generate_api_key()
     api_key_rec = ApiKey(
@@ -88,7 +99,7 @@ def bootstrap_first_key(
 def revoke_key(
     key_id: uuid.UUID,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN)),
 ):
     rec = session.get(ApiKey, key_id)
     if not rec:

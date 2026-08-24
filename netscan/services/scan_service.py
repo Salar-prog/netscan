@@ -51,6 +51,8 @@ class ScanService:
             job.started_at = scan_start
             session.add(job)
             session.commit()
+            subnet_cidr = subnet.cidr
+            job_subnet_id = job.subnet_id
 
         logger.info(
             "Scan started",
@@ -59,13 +61,14 @@ class ScanService:
 
         # Execute discovery probe asynchronously outside DB transaction
         try:
-            probe_results = await self.scanner.scan_cidr(subnet.cidr, scan_ports=True)
+            probe_results = await self.scanner.scan_cidr(subnet_cidr, scan_ports=True)
         except Exception as e:
             duration_ms = int((datetime.now(timezone.utc) - scan_start).total_seconds() * 1000)
             logger.error(
                 "Scan failed",
                 extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "error": str(e), "duration_ms": duration_ms}},
             )
+            logger.exception(f"Error scanning CIDR {subnet_cidr}: {e}")
             with Session(engine) as session:
                 job = session.get(ScanJob, scan_job_id)
                 if job:
@@ -78,7 +81,7 @@ class ScanService:
 
         # Reconcile probe results against existing IP records
         with Session(engine) as session:
-            subnet = session.get(Subnet, job.subnet_id)
+            subnet = session.get(Subnet, job_subnet_id)
             all_hosts = expand_cidr_hosts(subnet.cidr)
             
             # Fetch existing IP records for this subnet

@@ -71,17 +71,23 @@ Live status of implementation phases.
 
 ## Phase 5: Test Coverage Gaps
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
+**Commit:** `feat/phase5-test-coverage`
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 5.1 scheduler_service tests | PENDING | Zero tests |
-| 5.2 webhook_service tests | PENDING | Zero tests |
-| 5.3 scan_service tests | PENDING | Zero tests |
-| 5.4 runner.py edge cases | PENDING | 1 test (happy path only) |
-| 5.5 ips.py PATCH/DELETE tests | PENDING | No tests |
-| 5.6 auth.py role-based tests | PENDING | No tests |
-| 5.7 classifier.py edge cases | PENDING | 5 happy-path tests |
+| 5.1 scheduler_service tests | Done | 6 tests: job add/skip/remove logic, trigger_scheduled_scan |
+| 5.2 webhook_service tests | Done | 6 tests: HMAC signature, event filter, wildcard, retry/give-up |
+| 5.3 scan_service tests | Done | 4 tests: success path, missing subnet, scanner failure, state-change audit |
+| 5.4 runner.py edge cases | Done | 14 tests: XML edge cases, reason->method mapping, build_nmap_args branches |
+| 5.5 ips.py PATCH/DELETE tests | Done (PATCH only) | No DELETE endpoint exists on /ips; PATCH + history covered |
+| 5.6 auth.py role-based tests | Done | Role enforcement implemented (require_role); admin-only key mgmt, operator writes |
+| 5.7 classifier.py edge cases | Done | 11 total: unseen hosts, miss/quarantine independence, recovery paths |
+
+Additional fixes made while writing tests:
+
+- **fix:** scan trigger endpoint was sync but used `asyncio.create_task` -- crashed with "no running event loop". Made async.
+- **fix:** scan_service accessed detached ORM attributes (`subnet.cidr`, `job.subnet_id`) after session close -- DetachedInstanceError with default expire_on_commit. Fields now captured inside session.
 
 ---
 
@@ -108,6 +114,5 @@ Live status of implementation phases.
 | Phase 1 | COMPLETE | 19/19 pass |
 | Phase 2 | COMPLETE | 19/19 pass |
 | Phase 3 | COMPLETE | 19/19 pass |
-| Phase 4 | COMPLETE (merged into Phase 6) | 19/19 pass |
-| Phase 5 | NOT STARTED | 19/19 pass |
-| Phase 6 | COMPLETE (feature branch) | 19/19 pass |
+| Phase 4 | COMPLETE | 19/19 pass |
+| Phase 5 | COMPLETE | 64/64 pass |

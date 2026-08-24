@@ -5,9 +5,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import AnyHttpUrl, BaseModel
 from sqlmodel import Session, select
-from netscan.api.auth import get_current_api_key
+from netscan.api.auth import get_current_api_key, require_role
 from netscan.db import get_session
-from netscan.models import Webhook
+from netscan.models import Role, Webhook
 from netscan.services.webhook_service import WebhookDispatcher
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -52,7 +52,7 @@ def list_webhooks(
 def create_webhook(
     payload: WebhookCreate,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     raw_secret = secrets.token_urlsafe(32)
     wh = Webhook(
@@ -81,7 +81,7 @@ def create_webhook(
 def delete_webhook(
     webhook_id: uuid.UUID,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     wh = session.get(Webhook, webhook_id)
     if not wh:
@@ -95,7 +95,7 @@ def delete_webhook(
 async def test_webhook(
     webhook_id: uuid.UUID,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     wh = session.get(Webhook, webhook_id)
     if not wh:
