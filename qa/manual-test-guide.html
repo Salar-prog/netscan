@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetScan Manual QA Test Guide</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .print-break { page-break-before: always; }
+    body { font-size: 12px; }
+    .checkbox { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border: 1.5px solid #4b5563; border-radius: 2px; display: inline-block; vertical-align: middle; }
+    .checkbox:checked { background: #3b82f6; border-color: #3b82f6; }
+  }
+  .copy-btn { opacity: 0; transition: opacity 0.15s; }
+  pre:hover .copy-btn { opacity: 1; }
+  .step-card { scroll-margin-top: 80px; }
+</style>
+</head>
+<body class="bg-gray-950 text-gray-200 font-sans">
+
+<nav class="fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-b border-gray-800 z-50 no-print">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-bold text-white">NetScan QA Guide</h1>
+    <div class="flex gap-4 text-sm">
+      <a href="#prerequisites" class="hover:text-white">Setup</a>
+      <a href="#step-1" class="hover:text-white">Start</a>
+      <a href="#step-2" class="hover:text-white">Bootstrap</a>
+      <a href="#step-3" class="hover:text-white">Dashboard</a>
+      <a href="#step-4" class="hover:text-white">Subnets</a>
+      <a href="#step-5" class="hover:text-white">IPs</a>
+      <a href="#step-6" class="hover:text-white">Scans</a>
+      <a href="#step-7" class="hover:text-white">Webhooks</a>
+      <a href="#step-8" class="hover:text-white">Auth</a>
+      <a href="#step-9" class="hover:text-white">Errors</a>
+      <a href="#step-10" class="hover:text-white">Health</a>
+      <a href="#quick-smoke" class="hover:text-white text-blue-400">Smoke</a>
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-5xl mx-auto px-4 pt-20 pb-16 space-y-12">
+
+  <!-- Header -->
+  <header class="text-center space-y-2">
+    <h1 class="text-3xl font-bold text-white">NetScan Manual QA Test Guide</h1>
+    <p class="text-gray-400">Step-by-step testing on a fresh Debian/Ubuntu system</p>
+    <p class="text-xs text-gray-500">Last updated: August 2026</p>
+  </header>
+
+  <!-- Prerequisites -->
+  <section id="prerequisites" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Prerequisites</h2>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-2">Fresh Debian/Ubuntu Setup</h3>
+      <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>sudo apt update && sudo apt upgrade -y
+
+# Docker
+sudo apt install -y docker.io docker-compose-v2
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+# Log out and back in
+
+# Utilities
+sudo apt install -y curl jq nmap</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-2">Verify Prerequisites</h3>
+      <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>docker --version    # Docker version 24+
+curl --version      # curl 7+
+jq --version        # jq 1+
+nmap --version      # Nmap 7+</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    </div>
+  </section>
+
+  <!-- Step 1: Start -->
+  <section id="step-1" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 1: Start the App</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-2">Option A: Docker (Recommended)</h3>
+        <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>docker build -t netscan:test /path/to/netscan
+
+docker run -d \
+  --name netscan \
+  -p 8000:8000 \
+  -e SECRET_KEY=qa-test-secret-key \
+  netscan:test
+
+docker ps
+curl http://localhost:8000/health</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-2">Option B: Local Install</h3>
+        <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>sudo apt install -y python3 python3-pip python3-venv
+
+git clone https://github.com/Salar-prog/netscan.git
+cd netscan
+pip install -e ".[test]"
+
+netscan serve --host 0.0.0.0 --port 8000</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+      </div>
+    </div>
+    <div class="bg-green-950 border border-green-800 rounded-lg p-3 text-sm text-green-300">
+      <strong>Expected:</strong> <code>{"status":"healthy","service":"NetScan","version":"0.1.0","checks":{"database":"ok","nmap":"ok"}}</code>
+    </div>
+  </section>
+
+  <!-- Step 2: Bootstrap -->
+  <section id="step-2" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 2: Bootstrap API Key</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>curl -X POST http://localhost:8000/api/v1/auth/keys/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"name": "qa-admin-key"}' | jq
+
+# Save the raw_key — never shown again
+export NSCAN_KEY="nsc_YOUR_KEY_HERE"</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-yellow-950 border border-yellow-800 rounded-lg p-3 text-sm text-yellow-300">
+      <strong>Expected:</strong> 201 with <code>id</code>, <code>prefix</code>, <code>role: "admin"</code>, <code>raw_key</code> fields.
+    </div>
+  </section>
+
+  <!-- Step 3: Dashboard -->
+  <section id="step-3" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 3: Dashboard Browser Testing</h2>
+    <p class="text-gray-400">Open <a href="http://localhost:8000/" class="text-blue-400 underline">http://localhost:8000/</a> in your browser.</p>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">3.1</td><td>Page loads</td><td>Dark theme, no console errors</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">3.2</td><td>Header text</td><td>"Network Subnets & IP Pools"</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">3.3</td><td>Summary cards</td><td>4 cards: Tracked Subnets, Active IPs, Uncertain, Available</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">3.4</td><td>"Add Subnet CIDR" button</td><td>Opens modal form</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">3.5</td><td>Empty state</td><td>No subnets listed, clean state</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">3.6</td><td>Navigation</td><td>Settings, Scans links work</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 4: Subnets -->
+  <section id="step-4" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 4: Subnet CRUD</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code># Create
+curl -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"cidr":"192.168.1.0/30","name":"QA Test Subnet","scan_interval_minutes":60,"miss_threshold":3,"quarantine_hours":48}' | jq
+
+export SUBNET_ID=$(curl -s http://localhost:8000/api/v1/subnets -H "X-API-Key: $NSCAN_KEY" | jq -r '.[0].id')
+
+# List
+curl -s http://localhost:8000/api/v1/subnets -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Get
+curl -s http://localhost:8000/api/v1/subnets/$SUBNET_ID -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Matrix
+curl -s http://localhost:8000/api/v1/subnets/$SUBNET_ID/matrix -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Delete
+curl -X DELETE http://localhost:8000/api/v1/subnets/$SUBNET_ID -H "X-API-Key: $NSCAN_KEY"</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">4.1</td><td>Create subnet</td><td>201 with ID</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.2</td><td>Invalid CIDR</td><td>"999.999.0.0/24" returns 400</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.3</td><td>Duplicate CIDR</td><td>Same CIDR twice returns 409</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.4</td><td>List returns array</td><td>Array with at least 1 subnet</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.5</td><td>Subnet has stats</td><td><code>stats</code> object with total/active/uncertain/reserved/available</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.6</td><td>Get subnet details</td><td>Full subnet object</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.7</td><td>Unknown subnet ID</td><td>404</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.8</td><td>CIDR matrix</td><td>Array of IPs (4 for /30)</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.9</td><td>IP has status</td><td><code>status</code> field on each IP</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.10</td><td>Delete subnet</td><td>200, removed</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">4.11</td><td>Get after delete</td><td>404</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 5: IPs -->
+  <section id="step-5" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 5: IP Operations</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code># Re-create subnet for IP testing
+curl -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"cidr":"10.0.0.0/30","name":"IP Test Subnet"}'
+
+export SUBNET_ID=$(curl -s http://localhost:8000/api/v1/subnets -H "X-API-Key: $NSCAN_KEY" | jq -r '.[0].id')
+
+# List IPs
+curl -s http://localhost:8000/api/v1/ips -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Filter by subnet
+curl -s "http://localhost:8000/api/v1/ips?subnet_id=$SUBNET_ID" -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Get next available
+curl -s "http://localhost:8000/api/v1/ips/available?subnet_id=$SUBNET_ID&count=2" -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Reserve
+curl -X PATCH http://localhost:8000/api/v1/ips/10.0.0.1 \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"is_reserved":true,"hostname":"printer.corp","custom_metadata":{"owner":"infra-team"}}' | jq
+
+# Unreserve
+curl -X PATCH http://localhost:8000/api/v1/ips/10.0.0.1 \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"is_reserved":false}' | jq
+
+# History
+curl -s http://localhost:8000/api/v1/ips/10.0.0.1/history -H "X-API-Key: $NSCAN_KEY" | jq</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">5.1</td><td>List returns array</td><td>Array of IP objects</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.2</td><td>Filter by subnet</td><td>Only IPs from specified subnet</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.3</td><td>Get available IPs</td><td>Array with 2 available IPs</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.4</td><td>IPs are available</td><td>Status is AVAILABLE_CANDIDATE</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.5</td><td>Reserve IP</td><td>200, status changes to ASSIGNED_RESERVED</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.6</td><td>Metadata saved</td><td><code>custom_metadata</code> contains provided data</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.7</td><td>Hostname saved</td><td><code>hostname</code> is "printer.corp"</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.8</td><td>Unreserve IP</td><td>200, status back to AVAILABLE_CANDIDATE</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.9</td><td>IP history</td><td>Array with at least 1 event</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.10</td><td>Event has details</td><td><code>event_type</code>, <code>old_status</code>, <code>new_status</code></td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">5.11</td><td>Unknown IP</td><td>404</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 6: Scanning -->
+  <section id="step-6" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 6: Scanning</h2>
+    <div class="bg-yellow-950 border border-yellow-800 rounded-lg p-3 text-sm text-yellow-300">
+      Requires <code>nmap</code> installed on the host. Pre-installed in Docker image.
+    </div>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code># Trigger scan
+curl -X POST http://localhost:8000/api/v1/subnets/$SUBNET_ID/scan \
+  -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Check jobs
+curl -s http://localhost:8000/api/v1/scans -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Wait and re-check
+sleep 10
+curl -s http://localhost:8000/api/v1/scans -H "X-API-Key: $NSCAN_KEY" | jq '.[0]'</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">6.1</td><td>Scan triggered</td><td>202 with scan job ID</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">6.2</td><td>Returns jobs</td><td>Array with at least 1 scan job</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">6.3</td><td>Job has status</td><td>QUEUED, RUNNING, COMPLETED, or FAILED</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">6.4</td><td>Scan completed</td><td>Status is COMPLETED (or FAILED if nmap can't reach subnet)</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">6.5</td><td>Stats populated</td><td><code>total_ips</code>, <code>active_ips</code> fields set</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 7: Webhooks -->
+  <section id="step-7" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 7: Webhooks</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code># Create
+curl -X POST http://localhost:8000/api/v1/webhooks \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"QA Test Webhook","url":"https://httpbin.org/post","events":["ip.state_changed","scan.completed"]}' | jq
+
+export WEBHOOK_ID=$(curl -s http://localhost:8000/api/v1/webhooks -H "X-API-Key: $NSCAN_KEY" | jq -r '.[0].id')
+
+# List (verify secret is NOT in response)
+curl -s http://localhost:8000/api/v1/webhooks -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Test
+curl -X POST http://localhost:8000/api/v1/webhooks/$WEBHOOK_ID/test -H "X-API-Key: $NSCAN_KEY" | jq
+
+# Delete
+curl -X DELETE http://localhost:8000/api/v1/webhooks/$WEBHOOK_ID -H "X-API-Key: $NSCAN_KEY"</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">7.1</td><td>Create webhook</td><td>201 with ID</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.2</td><td>Secret returned</td><td>Response includes <code>secret</code> field (shown once)</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.3</td><td>Invalid URL</td><td>"not-a-url" returns 400</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.4</td><td>List returns array</td><td>Array with at least 1 webhook</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.5</td><td>Secret hidden</td><td><code>secret</code> NOT in list response</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.6</td><td>Test dispatched</td><td>200 OK</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">7.7</td><td>Delete webhook</td><td>200, removed</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 8: Auth & Roles -->
+  <section id="step-8" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 8: Authentication & Roles</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code># Create read-only key
+RO_KEY=$(curl -s -X POST http://localhost:8000/api/v1/auth/keys \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"readonly-key","role":"read_only"}' | jq -r '.prefix')
+
+# Read-only CAN read
+curl -s http://localhost:8000/api/v1/subnets -H "X-API-Key: $RO_KEY" | jq
+
+# Read-only CANNOT write
+curl -s -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: $RO_KEY" -H "Content-Type: application/json" \
+  -d '{"cidr":"10.99.0.0/24","name":"Should Fail"}'
+
+# Create operator key
+OP_KEY=$(curl -s -X POST http://localhost:8000/api/v1/auth/keys \
+  -H "X-API-Key: $NSCAN_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"operator-key","role":"operator"}' | jq -r '.prefix')
+
+# Operator CAN write subnets
+curl -s -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: $OP_KEY" -H "Content-Type: application/json" \
+  -d '{"cidr":"10.88.0.0/30","name":"Operator Subnet"}' | jq
+
+# Operator CANNOT manage keys
+curl -s -X POST http://localhost:8000/api/v1/auth/keys \
+  -H "X-API-Key: $OP_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"should-fail","role":"read_only"}'
+
+# Bootstrap only works once
+curl -X POST http://localhost:8000/api/v1/auth/keys/bootstrap \
+  -H "Content-Type: application/json" -d '{"name":"second-bootstrap"}'
+
+# Invalid key
+curl -s http://localhost:8000/api/v1/subnets -H "X-API-Key: fake-key-12345"
+
+# Missing key
+curl -s http://localhost:8000/api/v1/subnets</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">8.1</td><td>Read-only can read</td><td>200</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.2</td><td>Read-only can't write</td><td>403</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.3</td><td>Operator can write subnets</td><td>201</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.4</td><td>Operator can't manage keys</td><td>403</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.5</td><td>Second bootstrap blocked</td><td>403 "Bootstrap disabled"</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.6</td><td>Invalid API key</td><td>403 "Invalid or revoked"</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">8.7</td><td>Missing API key</td><td>403 "Not authenticated"</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 9: Error Cases -->
+  <section id="step-9" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 9: Error Cases</h2>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Test</th><th class="px-3 py-2 text-left">Command</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">9.1</td><td>Invalid CIDR</td><td><code>POST /subnets</code> with <code>"cidr":"invalid"</code></td><td>400</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">9.2</td><td>Missing required field</td><td><code>POST /subnets</code> with <code>{}</code></td><td>400</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">9.3</td><td>Unknown subnet</td><td><code>GET /subnets/00000000-0000-0000-0000-000000000000</code></td><td>404</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">9.4</td><td>Unknown IP</td><td><code>GET /ips/999.999.999.999</code></td><td>404</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">9.5</td><td>Rate limiting</td><td>120+ requests/minute to any endpoint</td><td>429</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">9.6</td><td>Method not allowed</td><td><code>DELETE /health</code></td><td>405</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Step 10: Health & System -->
+  <section id="step-10" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 10: Health & System</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>curl -s http://localhost:8000/health | jq</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">10.1</td><td>Health returns OK</td><td><code>"status": "healthy"</code></td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">10.2</td><td>Database check</td><td><code>"database": "ok"</code></td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">10.3</td><td>Nmap check</td><td><code>"nmap": "ok"</code></td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-2">API Documentation</h3>
+      <div class="grid md:grid-cols-2 gap-4 text-sm">
+        <div>Open <a href="http://localhost:8000/docs" class="text-blue-400 underline">http://localhost:8000/docs</a> — Swagger UI. Interactive API testing.</div>
+        <div>Open <a href="http://localhost:8000/redoc" class="text-blue-400 underline">http://localhost:8000/redoc</a> — ReDoc. Clean API reference.</div>
+      </div>
+      <div class="mt-3 bg-gray-950 border border-gray-800 rounded overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+          <tbody class="divide-y divide-gray-800">
+            <tr><td class="px-3 py-2">10.4</td><td>Swagger loads</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+            <tr><td class="px-3 py-2">10.5</td><td>Try it out from Swagger UI</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+            <tr><td class="px-3 py-2">10.6</td><td>ReDoc loads</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 11: Dashboard UI -->
+  <section id="step-11" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Step 11: Dashboard UI (Browser)</h2>
+    <p class="text-gray-400">After creating subnets and IPs via API, check the dashboard.</p>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">Check</th><th class="px-3 py-2 text-left">Expected</th><th class="px-3 py-2 text-center">Pass</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">11.1</td><td>Subnets appear</td><td>Created subnets listed</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.2</td><td>Stats updated</td><td>Summary cards show correct counts</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.3</td><td>Click subnet</td><td>Opens CIDR matrix view</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.4</td><td>IP grid</td><td>Matrix shows IPs with color-coded statuses</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.5</td><td>Click IP</td><td>Opens IP detail drawer</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.6</td><td>Reserve from UI</td><td>Toggle reservation in drawer</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.7</td><td>Settings page</td><td>Webhook management works</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+          <tr><td class="px-3 py-2">11.8</td><td>Scans page</td><td>Shows scan job history</td><td class="text-center"><input type="checkbox" class="checkbox"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Quick Smoke Test -->
+  <section id="quick-smoke" class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Quick Smoke Test</h2>
+    <p class="text-gray-400">Copy-paste this entire block to verify core functionality.</p>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>export KEY=$(curl -s -X POST http://localhost:8000/api/v1/auth/keys/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"name": "smoke-test"}' | jq -r '.raw_key')
+
+SUBNET=$(curl -s -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"cidr": "10.0.0.0/30", "name": "Smoke Test"}' | jq -r '.id')
+echo "Subnet ID: $SUBNET"
+
+curl -s -H "X-API-Key: $KEY" http://localhost:8000/api/v1/subnets | jq length
+curl -s -H "X-API-Key: $KEY" "http://localhost:8000/api/v1/ips/available?subnet_id=$SUBNET&count=2" | jq length
+curl -s -X PATCH -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  http://localhost:8000/api/v1/ips/10.0.0.1 \
+  -d '{"is_reserved": true, "hostname": "smoke-test"}' | jq .status
+curl -s -X POST -H "X-API-Key: $KEY" http://localhost:8000/api/v1/subnets/$SUBNET/scan | jq .status
+curl -s -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  http://localhost:8000/api/v1/webhooks \
+  -d '{"name": "smoke", "url": "https://httpbin.org/post"}' | jq .name
+curl -s http://localhost:8000/health | jq .status
+echo "=== SMOKE TEST COMPLETE ==="</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+  </section>
+
+  <!-- Cleanup -->
+  <section class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Cleanup</h2>
+    <pre class="relative bg-gray-950 border border-gray-800 rounded p-3 text-sm overflow-x-auto"><code>docker stop netscan && docker rm netscan</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
+  </section>
+
+  <!-- Results Summary -->
+  <section class="step-card space-y-4">
+    <h2 class="text-xl font-bold text-white border-b border-gray-800 pb-2">Test Results Summary</h2>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-300"><tr><th class="px-3 py-2 text-left">Section</th><th class="px-3 py-2 text-center">Total</th><th class="px-3 py-2 text-center">Passed</th><th class="px-3 py-2 text-center">Failed</th></tr></thead>
+        <tbody class="divide-y divide-gray-800">
+          <tr><td class="px-3 py-2">3. Dashboard Browser</td><td class="text-center">6</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">4. Subnet CRUD</td><td class="text-center">11</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">5. IP Operations</td><td class="text-center">11</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">6. Scanning</td><td class="text-center">5</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">7. Webhooks</td><td class="text-center">7</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">8. Auth & Roles</td><td class="text-center">7</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">9. Error Cases</td><td class="text-center">6</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">10. Health & System</td><td class="text-center">6</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr><td class="px-3 py-2">11. Dashboard UI</td><td class="text-center">8</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+          <tr class="bg-gray-800 font-bold"><td class="px-3 py-2">Total</td><td class="text-center">67</td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td><td class="px-6 py-2"><input type="text" class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-center text-sm" placeholder="-"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex gap-8 text-sm text-gray-400">
+      <div>QA Tester: _________________</div>
+      <div>Date: _________________</div>
+      <div class="no-print"><button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">Print</button></div>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>
