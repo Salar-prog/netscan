@@ -31,10 +31,11 @@ class ScanService:
 
     async def execute_scan(self, scan_job_id: uuid.UUID) -> None:
         """Background worker method to execute a scan job."""
+        scan_start = datetime.now(timezone.utc)
         with Session(engine) as session:
             job = session.get(ScanJob, scan_job_id)
             if not job:
-                logger.error(f"ScanJob {scan_job_id} not found.")
+                logger.error("ScanJob %s not found.", scan_job_id)
                 return
 
             subnet = session.get(Subnet, job.subnet_id)
@@ -43,18 +44,28 @@ class ScanService:
                 job.error_message = f"Subnet {job.subnet_id} not found."
                 session.add(job)
                 session.commit()
+                logger.error("ScanJob %s failed: subnet %s not found.", scan_job_id, job.subnet_id)
                 return
 
             job.status = ScanStatus.RUNNING
-            job.started_at = datetime.now(timezone.utc)
+            job.started_at = scan_start
             session.add(job)
             session.commit()
+
+        logger.info(
+            "Scan started",
+            extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "triggered_by": job.triggered_by.value}},
+        )
 
         # Execute discovery probe asynchronously outside DB transaction
         try:
             probe_results = await self.scanner.scan_cidr(subnet.cidr, scan_ports=True)
         except Exception as e:
-            logger.exception(f"Error scanning CIDR {subnet.cidr}: {e}")
+            duration_ms = int((datetime.now(timezone.utc) - scan_start).total_seconds() * 1000)
+            logger.error(
+                "Scan failed",
+                extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "error": str(e), "duration_ms": duration_ms}},
+            )
             with Session(engine) as session:
                 job = session.get(ScanJob, scan_job_id)
                 if job:
@@ -173,6 +184,21 @@ class ScanService:
             job.reserved_ips = reserved_count
             session.add(job)
             session.commit()
+
+            duration_ms = int((job.completed_at - scan_start).total_seconds() * 1000)
+            logger.info(
+                "Scan completed",
+                extra={"extra_data": {
+                    "scan_job_id": str(scan_job_id),
+                    "subnet_cidr": subnet.cidr,
+                    "total_ips": job.total_ips,
+                    "active_ips": active_count,
+                    "uncertain_ips": uncertain_count,
+                    "available_ips": available_count,
+                    "reserved_ips": reserved_count,
+                    "duration_ms": duration_ms,
+                }},
+            )
 
             # Dispatch webhooks asynchronously
             for evt in state_change_events:
