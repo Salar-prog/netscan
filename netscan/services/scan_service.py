@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -31,7 +32,7 @@ class ScanService:
 
     async def execute_scan(self, scan_job_id: uuid.UUID) -> None:
         """Background worker method to execute a scan job."""
-        scan_start = datetime.now(timezone.utc)
+        scan_start = time.monotonic()
         with Session(engine) as session:
             job = session.get(ScanJob, scan_job_id)
             if not job:
@@ -48,7 +49,7 @@ class ScanService:
                 return
 
             job.status = ScanStatus.RUNNING
-            job.started_at = scan_start
+            job.started_at = datetime.now(timezone.utc)
             session.add(job)
             session.commit()
             subnet_cidr = subnet.cidr
@@ -63,12 +64,11 @@ class ScanService:
         try:
             probe_results = await self.scanner.scan_cidr(subnet_cidr, scan_ports=True)
         except Exception as e:
-            duration_ms = int((datetime.now(timezone.utc) - scan_start).total_seconds() * 1000)
+            duration_ms = int((time.monotonic() - scan_start) * 1000)
             logger.error(
                 "Scan failed",
                 extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "error": str(e), "duration_ms": duration_ms}},
             )
-            logger.exception(f"Error scanning CIDR {subnet_cidr}: {e}")
             with Session(engine) as session:
                 job = session.get(ScanJob, scan_job_id)
                 if job:
@@ -188,7 +188,7 @@ class ScanService:
             session.add(job)
             session.commit()
 
-            duration_ms = int((job.completed_at - scan_start).total_seconds() * 1000)
+            duration_ms = int((time.monotonic() - scan_start) * 1000)
             logger.info(
                 "Scan completed",
                 extra={"extra_data": {
