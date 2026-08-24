@@ -1,5 +1,5 @@
 import ipaddress
-from typing import List, Tuple
+from typing import List
 
 
 def validate_and_normalize_cidr(cidr_str: str) -> str:

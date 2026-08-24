@@ -1,7 +1,6 @@
-import asyncio
 import secrets
 import uuid
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import AnyHttpUrl, BaseModel
 from sqlmodel import Session, select

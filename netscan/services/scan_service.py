@@ -3,18 +3,16 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 from sqlmodel import Session, select
 from netscan.db import engine
 from netscan.models import (
-    EventType,
     IPAddress,
     IPHistory,
     IPStatus,
     ScanJob,
     ScanStatus,
     Subnet,
-    TriggerType,
 )
 from netscan.scanner.cidr import expand_cidr_hosts
 from netscan.scanner.classifier import StateClassifier
@@ -57,7 +55,13 @@ class ScanService:
 
         logger.info(
             "Scan started",
-            extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "triggered_by": job.triggered_by.value}},
+            extra={
+                "extra_data": {
+                    "scan_job_id": str(scan_job_id),
+                    "subnet_cidr": subnet.cidr,
+                    "triggered_by": job.triggered_by.value,
+                }
+            },
         )
 
         # Execute discovery probe asynchronously outside DB transaction
@@ -67,7 +71,14 @@ class ScanService:
             duration_ms = int((time.monotonic() - scan_start) * 1000)
             logger.error(
                 "Scan failed",
-                extra={"extra_data": {"scan_job_id": str(scan_job_id), "subnet_cidr": subnet.cidr, "error": str(e), "duration_ms": duration_ms}},
+                extra={
+                    "extra_data": {
+                        "scan_job_id": str(scan_job_id),
+                        "subnet_cidr": subnet.cidr,
+                        "error": str(e),
+                        "duration_ms": duration_ms,
+                    }
+                },
             )
             with Session(engine) as session:
                 job = session.get(ScanJob, scan_job_id)
@@ -83,7 +94,7 @@ class ScanService:
         with Session(engine) as session:
             subnet = session.get(Subnet, job_subnet_id)
             all_hosts = expand_cidr_hosts(subnet.cidr)
-            
+
             # Fetch existing IP records for this subnet
             existing_ips_query = select(IPAddress).where(IPAddress.subnet_id == subnet.id)
             existing_ips_map: Dict[str, IPAddress] = {
@@ -156,15 +167,17 @@ class ScanService:
                     session.add(history_entry)
 
                     if outcome.state_changed:
-                        state_change_events.append({
-                            "ip": ip_str,
-                            "old_status": outcome.old_status.value if outcome.old_status else None,
-                            "new_status": outcome.new_status.value,
-                            "hostname": outcome.hostname,
-                            "mac_address": outcome.mac_address,
-                            "open_ports": outcome.open_ports,
-                            "subnet_cidr": subnet.cidr,
-                        })
+                        state_change_events.append(
+                            {
+                                "ip": ip_str,
+                                "old_status": outcome.old_status.value if outcome.old_status else None,
+                                "new_status": outcome.new_status.value,
+                                "hostname": outcome.hostname,
+                                "mac_address": outcome.mac_address,
+                                "open_ports": outcome.open_ports,
+                                "subnet_cidr": subnet.cidr,
+                            }
+                        )
 
                 # Tally stats
                 if outcome.new_status == IPStatus.ACTIVE_DETECTED:
@@ -191,23 +204,23 @@ class ScanService:
             duration_ms = int((time.monotonic() - scan_start) * 1000)
             logger.info(
                 "Scan completed",
-                extra={"extra_data": {
-                    "scan_job_id": str(scan_job_id),
-                    "subnet_cidr": subnet.cidr,
-                    "total_ips": job.total_ips,
-                    "active_ips": active_count,
-                    "uncertain_ips": uncertain_count,
-                    "available_ips": available_count,
-                    "reserved_ips": reserved_count,
-                    "duration_ms": duration_ms,
-                }},
+                extra={
+                    "extra_data": {
+                        "scan_job_id": str(scan_job_id),
+                        "subnet_cidr": subnet.cidr,
+                        "total_ips": job.total_ips,
+                        "active_ips": active_count,
+                        "uncertain_ips": uncertain_count,
+                        "available_ips": available_count,
+                        "reserved_ips": reserved_count,
+                        "duration_ms": duration_ms,
+                    }
+                },
             )
 
             # Dispatch webhooks asynchronously
             for evt in state_change_events:
-                asyncio.create_task(
-                    WebhookDispatcher.dispatch_event("ip.state_changed", evt, session)
-                )
+                asyncio.create_task(WebhookDispatcher.dispatch_event("ip.state_changed", evt, session))
 
             asyncio.create_task(
                 WebhookDispatcher.dispatch_event(

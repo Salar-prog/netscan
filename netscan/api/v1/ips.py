@@ -1,6 +1,6 @@
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 from netscan.api.auth import get_current_api_key, require_role
@@ -79,6 +79,7 @@ def get_available_ips(
         raise HTTPException(status_code=404, detail="Subnet not found")
 
     from netscan.scanner.cidr import expand_cidr_hosts
+
     all_hosts = expand_cidr_hosts(subnet.cidr)
 
     # Get non-available IPs
@@ -172,9 +173,7 @@ def get_ip_history(
         raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not found.")
 
     history = session.exec(
-        select(IPHistory)
-        .where(IPHistory.ip_address_id == rec.id)
-        .order_by(IPHistory.timestamp.desc())
+        select(IPHistory).where(IPHistory.ip_address_id == rec.id).order_by(IPHistory.timestamp.desc())
     ).all()
 
     return {

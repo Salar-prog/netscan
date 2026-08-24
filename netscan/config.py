@@ -1,4 +1,3 @@
-from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,8 +36,7 @@ class Settings(BaseSettings):
     def validate_for_production(self) -> None:
         if not self.DEBUG and not self.SECRET_KEY:
             raise ValueError(
-                "SECRET_KEY must be set in production (DEBUG=False). "
-                "Set it in your .env file or environment."
+                "SECRET_KEY must be set in production (DEBUG=False). Set it in your .env file or environment."
             )
 
 

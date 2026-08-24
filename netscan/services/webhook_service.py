@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict
 import httpx
 from sqlmodel import Session, select
 from netscan.config import settings
@@ -27,7 +27,7 @@ class WebhookDispatcher:
         data: Dict[str, Any],
         session: Session,
     ) -> None:
-        statement = select(Webhook).where(Webhook.is_active == True)
+        statement = select(Webhook).where(Webhook.is_active)
         webhooks = session.exec(statement).all()
 
         if not webhooks:
@@ -62,17 +62,40 @@ class WebhookDispatcher:
                         if response.is_success:
                             logger.info(
                                 "Webhook delivered",
-                                extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "status_code": response.status_code, "duration_ms": duration_ms}},
+                                extra={
+                                    "extra_data": {
+                                        "webhook_name": wh.name,
+                                        "event": event_name,
+                                        "status_code": response.status_code,
+                                        "duration_ms": duration_ms,
+                                    }
+                                },
                             )
                             break
                         else:
                             logger.warning(
                                 "Webhook returned error",
-                                extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "status_code": response.status_code, "attempt": attempt + 1, "duration_ms": duration_ms}},
+                                extra={
+                                    "extra_data": {
+                                        "webhook_name": wh.name,
+                                        "event": event_name,
+                                        "status_code": response.status_code,
+                                        "attempt": attempt + 1,
+                                        "duration_ms": duration_ms,
+                                    }
+                                },
                             )
                     except Exception as e:
                         duration_ms = int((time.monotonic() - attempt_start) * 1000)
                         logger.error(
                             "Webhook delivery failed",
-                            extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "error": str(e), "attempt": attempt + 1, "duration_ms": duration_ms}},
+                            extra={
+                                "extra_data": {
+                                    "webhook_name": wh.name,
+                                    "event": event_name,
+                                    "error": str(e),
+                                    "attempt": attempt + 1,
+                                    "duration_ms": duration_ms,
+                                }
+                            },
                         )

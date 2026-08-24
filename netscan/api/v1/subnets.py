@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
@@ -43,31 +43,45 @@ def list_subnets(
     for s in subnets:
         # Calculate summary statistics for each subnet
         total_ips = len(expand_cidr_hosts(s.cidr))
-        active_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ACTIVE_DETECTED)).all())
-        uncertain_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.UNCERTAIN_FIREWALLED)).all())
-        reserved_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ASSIGNED_RESERVED)).all())
+        active_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ACTIVE_DETECTED)
+            ).all()
+        )
+        uncertain_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.UNCERTAIN_FIREWALLED)
+            ).all()
+        )
+        reserved_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ASSIGNED_RESERVED)
+            ).all()
+        )
         available_count = total_ips - (active_count + uncertain_count + reserved_count)
 
         meta = get_subnet_metadata(s.cidr)
-        results.append({
-            "id": s.id,
-            "cidr": s.cidr,
-            "name": s.name,
-            "description": s.description,
-            "scan_interval_minutes": s.scan_interval_minutes,
-            "miss_threshold": s.miss_threshold,
-            "quarantine_hours": s.quarantine_hours,
-            "is_active": s.is_active,
-            "created_at": s.created_at,
-            "metadata": meta,
-            "stats": {
-                "total": total_ips,
-                "active": active_count,
-                "uncertain": uncertain_count,
-                "reserved": reserved_count,
-                "available": max(0, available_count),
+        results.append(
+            {
+                "id": s.id,
+                "cidr": s.cidr,
+                "name": s.name,
+                "description": s.description,
+                "scan_interval_minutes": s.scan_interval_minutes,
+                "miss_threshold": s.miss_threshold,
+                "quarantine_hours": s.quarantine_hours,
+                "is_active": s.is_active,
+                "created_at": s.created_at,
+                "metadata": meta,
+                "stats": {
+                    "total": total_ips,
+                    "active": active_count,
+                    "uncertain": uncertain_count,
+                    "reserved": reserved_count,
+                    "available": max(0, available_count),
+                },
             }
-        })
+        )
     return results
 
 
@@ -174,29 +188,33 @@ def get_subnet_ip_matrix(
     for host_ip in all_hosts:
         rec = ip_map.get(host_ip)
         if rec:
-            matrix.append({
-                "ip": host_ip,
-                "status": rec.status.value,
-                "hostname": rec.hostname,
-                "mac_address": rec.mac_address,
-                "mac_vendor": rec.mac_vendor,
-                "open_ports_count": len(rec.open_ports),
-                "last_seen_at": rec.last_seen_at,
-                "last_scanned_at": rec.last_scanned_at,
-                "consecutive_misses": rec.consecutive_misses,
-            })
+            matrix.append(
+                {
+                    "ip": host_ip,
+                    "status": rec.status.value,
+                    "hostname": rec.hostname,
+                    "mac_address": rec.mac_address,
+                    "mac_vendor": rec.mac_vendor,
+                    "open_ports_count": len(rec.open_ports),
+                    "last_seen_at": rec.last_seen_at,
+                    "last_scanned_at": rec.last_scanned_at,
+                    "consecutive_misses": rec.consecutive_misses,
+                }
+            )
         else:
-            matrix.append({
-                "ip": host_ip,
-                "status": IPStatus.AVAILABLE_CANDIDATE.value,
-                "hostname": None,
-                "mac_address": None,
-                "mac_vendor": None,
-                "open_ports_count": 0,
-                "last_seen_at": None,
-                "last_scanned_at": None,
-                "consecutive_misses": 0,
-            })
+            matrix.append(
+                {
+                    "ip": host_ip,
+                    "status": IPStatus.AVAILABLE_CANDIDATE.value,
+                    "hostname": None,
+                    "mac_address": None,
+                    "mac_vendor": None,
+                    "open_ports_count": 0,
+                    "last_seen_at": None,
+                    "last_scanned_at": None,
+                    "consecutive_misses": 0,
+                }
+            )
 
     return {
         "subnet_id": subnet.id,
