@@ -44,7 +44,7 @@
 async function findAvailableIPs() {
     const subnetId = document.getElementById('subnet-select').value;
     const count = document.getElementById('count-input').value;
-    const res = await fetch(`/api/v1/ips/available?subnet_id=${subnetId}&count=${count}`);
+    const res = await fetch(`/web/ips/available?subnet_id=${subnetId}&count=${count}`);
     if (!res.ok) return;
     const data = await res.json();
     

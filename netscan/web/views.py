@@ -1,7 +1,7 @@
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from netscan.db import get_session
@@ -109,18 +109,13 @@ def matrix_view(subnet_id: uuid.UUID, request: Request, session: Session = Depen
 def ip_drawer_partial(ip_address: str, request: Request, session: Session = Depends(get_session)):
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
     if not rec:
-        rec = IPAddress(
-            ip=ip_address,
-            status=IPStatus.AVAILABLE_CANDIDATE,
-            subnet_id=uuid.uuid4(),
-        )
-        history = []
-    else:
-        history = session.exec(
-            select(IPHistory)
-            .where(IPHistory.ip_address_id == rec.id)
-            .order_by(IPHistory.timestamp.desc())
-        ).all()
+        raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not tracked yet.")
+
+    history = session.exec(
+        select(IPHistory)
+        .where(IPHistory.ip_address_id == rec.id)
+        .order_by(IPHistory.timestamp.desc())
+    ).all()
 
     return templates.TemplateResponse(
         request=request,
@@ -154,6 +149,38 @@ def provision_view(request: Request, session: Session = Depends(get_session)):
             "subnets": subnet_cards,
         },
     )
+
+
+@web_router.get("/web/ips/available", response_class=JSONResponse)
+def web_available_ips(
+    subnet_id: str,
+    count: int = 1,
+    session: Session = Depends(get_session),
+):
+    """Server-side available IPs endpoint for the provision page (no API key required)."""
+    try:
+        sid = uuid.UUID(subnet_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid subnet_id")
+    subnet = session.get(Subnet, sid)
+    if not subnet:
+        raise HTTPException(status_code=404, detail="Subnet not found")
+
+    all_hosts = expand_cidr_hosts(subnet.cidr)
+    unavailable_query = select(IPAddress).where(
+        IPAddress.subnet_id == subnet.id,
+        IPAddress.status.in_([IPStatus.ACTIVE_DETECTED, IPStatus.ASSIGNED_RESERVED, IPStatus.UNCERTAIN_FIREWALLED]),
+    )
+    unavailable_ips = {rec.ip for rec in session.exec(unavailable_query).all()}
+
+    available = [h for h in all_hosts if h not in unavailable_ips][:count]
+    return {
+        "subnet_id": str(subnet.id),
+        "cidr": subnet.cidr,
+        "requested_count": count,
+        "available_ips": available,
+        "count_returned": len(available),
+    }
 
 
 @web_router.get("/scans", response_class=HTMLResponse)

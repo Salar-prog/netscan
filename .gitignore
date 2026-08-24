@@ -1,1 +1,11 @@
 needle/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.sqlite3
+.pytest_cache/
+*.egg-info/
+dist/
+build/
