@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -15,7 +16,17 @@ class ApiKeyCreate(BaseModel):
     role: Role = Role.OPERATOR
 
 
-@router.get("", response_model=List[ApiKey])
+class ApiKeyResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    prefix: str
+    role: Role
+    is_active: bool
+    last_used_at: Optional[datetime]
+    created_at: datetime
+
+
+@router.get("", response_model=List[ApiKeyResponse])
 def list_keys(
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),

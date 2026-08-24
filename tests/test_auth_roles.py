@@ -92,3 +92,21 @@ def test_revoked_key_is_rejected(make_key_headers):
     assert revoke.status_code == 204
 
     assert client.get("/api/v1/subnets", headers=temp_headers).status_code == 403
+
+
+def test_list_keys_does_not_expose_key_hash(make_key_headers):
+    client, _ = make_key_headers
+
+    res = client.get("/api/v1/auth/keys")
+    assert res.status_code == 401
+
+    client2, make_headers = make_key_headers
+    admin = make_headers(Role.ADMIN)
+
+    keys = client2.get("/api/v1/auth/keys", headers=admin).json()
+    assert len(keys) >= 1
+    for key in keys:
+        assert "key_hash" not in key
+    assert set(keys[0].keys()) == {
+        "id", "name", "prefix", "role", "is_active", "last_used_at", "created_at",
+    }
