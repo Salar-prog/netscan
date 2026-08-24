@@ -85,6 +85,22 @@ Live status of implementation phases.
 
 ---
 
+## Phase 6: Observability (feat/observability branch)
+
+**Status:** COMPLETE
+**Branch:** `feat/observability`
+**Commits:** 5 stages, all on feature branch
+
+| Item | Status | Notes |
+|------|--------|-------|
+| 6.1 Structured logging config | Done | LOG_FORMAT + LOG_LEVEL settings, JSONFormatter, dictConfig |
+| 6.2 Scan service logging | Done | Log start/end/failure with subnet_cidr, duration_ms |
+| 6.3 Webhook dispatch logging | Done | Log delivery success/failure with webhook_name, status_code, duration_ms |
+| 6.4 Access logging middleware | Done | ASGI middleware logging method, path, status_code, duration_ms, client_ip |
+| 6.5 Scheduler failure logging | Done | Log job registration/removal, try/except on trigger_scheduled_scan |
+
+---
+
 ## Summary
 
 | Phase | Status | Tests |
@@ -92,5 +108,6 @@ Live status of implementation phases.
 | Phase 1 | COMPLETE | 19/19 pass |
 | Phase 2 | COMPLETE | 19/19 pass |
 | Phase 3 | COMPLETE | 19/19 pass |
-| Phase 4 | PARTIAL | 19/19 pass |
+| Phase 4 | COMPLETE (merged into Phase 6) | 19/19 pass |
 | Phase 5 | NOT STARTED | 19/19 pass |
+| Phase 6 | COMPLETE (feature branch) | 19/19 pass |

@@ -97,3 +97,23 @@ Every actual change made, mapped to the stage that produced it.
 
 ### Fix: Dockerfile non-root user can't write DB
 - `Dockerfile`: Added `chown -R netscan:netscan /app` before `USER netscan`
+
+---
+
+## Phase 6: Observability (feat/observability branch)
+
+### Stage 6.1 — Structured logging config
+- `netscan/config.py`: Added `LOG_FORMAT` and `LOG_LEVEL` settings
+- `netscan/main.py`: Replaced `logging.basicConfig` with `logging.config.dictConfig`; added `JSONFormatter` class; added `AccessLogMiddleware`
+
+### Stage 6.2 — Scan service logging
+- `netscan/services/scan_service.py`: Added structured logging for scan started, scan completed (with duration_ms), scan failed (with error)
+
+### Stage 6.3 — Webhook dispatch logging
+- `netscan/services/webhook_service.py`: Added structured logging for webhook delivered (status_code, duration_ms) and webhook delivery failed (error, attempt, duration_ms)
+
+### Stage 6.4 — Access logging middleware
+- `netscan/main.py`: Added `AccessLogMiddleware` ASGI middleware logging method, path, status_code, duration_ms, client_ip; exempt `/health`; log level based on status code
+
+### Stage 6.5 — Scheduler failure logging
+- `netscan/services/scheduler_service.py`: Added structured logging for scheduler started (job_count), job registration/removal, wrapped `trigger_scheduled_scan` in try/except with error logging
