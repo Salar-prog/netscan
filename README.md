@@ -1,83 +1,130 @@
-# NetScan 📡
-### Production-Grade IP Discovery and Availability Platform
+# NetScan
 
-NetScan is a lightweight, API-first IP availability tracking and network discovery service. It reconciles active network probes (L2 ARP, L3 ICMP, L4 TCP SYN) with managed subnet pools to provide safe, real-time visibility into which IP addresses are active, quarantined/uncertain, reserved, or available for allocation.
+Production-grade IP discovery and availability tracking platform.
 
----
+NetScan reconciles active network probes (L2 ARP, L3 ICMP, L4 TCP SYN) with managed subnet pools to provide safe, real-time visibility into which IP addresses are active, quarantined, reserved, or available for allocation.
 
-## Key Features
+## Features
 
-- **Safe Availability & Quarantine**: Avoids naive "ping failure = free" assumptions. Firewalled or transiently unresponsive hosts enter an `UNCERTAIN_FIREWALLED` state and are only released to `AVAILABLE_CANDIDATE` after meeting both consecutive miss thresholds and configurable quarantine time windows.
-- **Multi-Probe Engine**: Auto-detects Linux capabilities (`CAP_NET_RAW` / root) to perform stealth L2 ARP sweeps and L4 TCP SYN probes (`-sS`), with seamless fallback to unprivileged TCP Connect sweeps (`-sT`).
-- **API-First & Automation Ready**: Full OpenAPI/REST endpoints for programmatic subnet management, instant "find next $K$ available IPs" queries for Terraform/provisioning pipelines, and per-IP audit history.
-- **Outbound Webhooks**: Dispatches HMAC-SHA256 signed event notifications with complete IP object snapshots (`ip.state_changed`, `scan.completed`).
-- **In-Process Scheduler**: Background scanning orchestrated with zero external message broker dependencies (no Redis or Celery needed).
-- **HTMX & Tailwind Dashboard**: High-reactivity server-rendered visual CIDR matrix grid, IP inspector slide-over drawer, and scan job monitor.
-
----
+- **Safe Availability & Quarantine** -- Avoids naive "ping failure = free" assumptions. Unresponsive hosts enter `UNCERTAIN_FIREWALLED` and are only released after meeting both miss thresholds and quarantine duration.
+- **Multi-Probe Engine** -- Auto-detects Linux capabilities for ARP/TCP SYN stealth sweeps, with fallback to unprivileged TCP Connect.
+- **API-First** -- Full REST API with OpenAPI docs. Programmatic subnet management, IP provisioning queries, and per-IP audit history.
+- **Outbound Webhooks** -- HMAC-SHA256 signed event notifications with full IP object snapshots.
+- **In-Process Scheduler** -- Background scanning with zero external dependencies (no Redis/Celery).
+- **HTMX Dashboard** -- Server-rendered CIDR matrix grid, IP inspector drawer, scan job monitor. No Node.js build step.
 
 ## Quickstart
 
-### 1. Requirements
-- Python 3.10+
-- `nmap` installed on system (`sudo apt install nmap` on Debian/Ubuntu)
+### Requirements
 
-### 2. Installation
+- Python 3.10+
+- `nmap` installed on the host (`sudo apt install nmap` on Debian/Ubuntu)
+
+### Install & Run
+
 ```bash
 pip install -e .
-```
-
-Or install dependencies directly:
-```bash
-pip install fastapi uvicorn sqlmodel pydantic-settings apscheduler httpx jinja2 python-multipart
-```
-
-### 3. Run Application
-```bash
 uvicorn netscan.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- **Web Dashboard**: [http://localhost:8000/](http://localhost:8000/)
-- **Interactive OpenAPI (Swagger) Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- Dashboard: http://localhost:8000/
+- Swagger: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
----
-
-## API Highlights
-
-### Find Next Available IPs (for Automated VM/Host Provisioning)
-```bash
-curl -X GET "http://localhost:8000/api/v1/ips/available?subnet_id=<SUBNET_UUID>&count=3"
-```
-**Response:**
-```json
-{
-  "subnet_id": "8f889218-1d2a-43c2-bf72-4b2a65a3962d",
-  "cidr": "192.168.1.0/24",
-  "requested_count": 3,
-  "available_ips": [
-    "192.168.1.15",
-    "192.168.1.16",
-    "192.168.1.17"
-  ],
-  "count_returned": 3
-}
-```
-
-### Inspect IP Address & Audit History
-```bash
-curl -X GET "http://localhost:8000/api/v1/ips/192.168.1.50/history"
-```
-
-### Trigger Subnet Scan
-```bash
-curl -X POST "http://localhost:8000/api/v1/subnets/<SUBNET_UUID>/scan"
-```
-
----
-
-## Running Tests
+### Docker
 
 ```bash
+docker build -t netscan .
+docker run -p 8000:8000 -e SECRET_KEY=your-secret-key netscan
+```
+
+Or with docker-compose:
+
+```yaml
+services:
+  netscan:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=your-secret-key
+      - DEBUG=false
+      - ALLOWED_ORIGINS=https://your-domain.com
+    volumes:
+      - netscan-data:/app/netscan.db
+
+volumes:
+  netscan-data:
+```
+
+## Configuration
+
+All settings are configured via environment variables or a `.env` file in the project root.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEBUG` | `false` | Enable debug logging and relaxed security |
+| `SECRET_KEY` | *(empty)* | **Required in production.** Used for session signing. |
+| `DATABASE_URL` | `sqlite:///./netscan.db` | Database connection string |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
+| `DEFAULT_SCAN_INTERVAL_MINUTES` | `60` | Default scan interval per subnet |
+| `DEFAULT_MISS_THRESHOLD` | `3` | Consecutive misses before uncertain state |
+| `DEFAULT_QUARANTINE_HOURS` | `48` | Hours before uncertain host can become available |
+| `NMAP_TIMEOUT_SECONDS` | `300` | Per-scan timeout |
+| `WEBHOOK_TIMEOUT_SECONDS` | `10` | Outbound webhook timeout |
+| `WEBHOOK_MAX_RETRIES` | `3` | Webhook delivery retry count |
+
+## API Key Setup
+
+All API endpoints require authentication via `X-API-Key` header. Create your first key via the bootstrap endpoint:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/keys/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-admin-key"}'
+```
+
+The response contains your `raw_key` -- store it safely, it is never shown again. Subsequent keys require an existing key:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/keys \
+  -H "X-API-Key: <your-existing-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "automation-key", "role": "operator"}'
+```
+
+## API Examples
+
+**Find next available IPs (for Terraform/provisioning):**
+
+```bash
+curl -H "X-API-Key: <key>" \
+  "http://localhost:8000/api/v1/ips/available?subnet_id=<SUBNET_UUID>&count=3"
+```
+
+**Trigger a subnet scan:**
+
+```bash
+curl -X POST -H "X-API-Key: <key>" \
+  http://localhost:8000/api/v1/subnets/<SUBNET_UUID>/scan
+```
+
+**Inspect IP history:**
+
+```bash
+curl -H "X-API-Key: <key>" \
+  http://localhost:8000/api/v1/ips/192.168.1.50/history
+```
+
+## Development
+
+```bash
+pip install -e ".[test]"
 pytest -v
 ```
+
+The test suite uses an in-memory SQLite database and does not require nmap or API keys.
+
+## License
+
+[MIT](LICENSE)
