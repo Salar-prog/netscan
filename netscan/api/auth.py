@@ -21,6 +21,7 @@ def require_role(*allowed: Role):
 
     return checker
 
+
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
@@ -48,7 +49,7 @@ async def get_current_api_key(
         )
 
     hashed = hash_key(header_key)
-    key_rec = session.exec(select(ApiKey).where(ApiKey.key_hash == hashed, ApiKey.is_active == True)).first()
+    key_rec = session.exec(select(ApiKey).where(ApiKey.key_hash == hashed, ApiKey.is_active)).first()
 
     if not key_rec:
         raise HTTPException(

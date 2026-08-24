@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import uuid
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -31,7 +30,7 @@ class ScanScheduler:
     def sync_all_subnet_jobs(self) -> None:
         """Register recurring jobs for all active subnets with interval > 0."""
         with Session(engine) as session:
-            subnets = session.exec(select(Subnet).where(Subnet.is_active == True)).all()
+            subnets = session.exec(select(Subnet).where(Subnet.is_active)).all()
             for subnet in subnets:
                 self.update_subnet_job(subnet)
 
@@ -54,7 +53,13 @@ class ScanScheduler:
             )
             logger.info(
                 "Scheduled scan",
-                extra={"extra_data": {"subnet_cidr": subnet.cidr, "interval_minutes": subnet.scan_interval_minutes, "job_id": job_id}},
+                extra={
+                    "extra_data": {
+                        "subnet_cidr": subnet.cidr,
+                        "interval_minutes": subnet.scan_interval_minutes,
+                        "job_id": job_id,
+                    }
+                },
             )
 
     def remove_subnet_job(self, subnet_id: uuid.UUID) -> None:

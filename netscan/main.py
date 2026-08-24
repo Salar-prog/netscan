@@ -4,7 +4,7 @@ import logging.config
 import shutil
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -73,18 +73,20 @@ def setup_logging():
     else:
         formatter = {"format": "%(asctime)s %(levelname)-8s %(name)s: %(message)s", "datefmt": "%Y-%m-%d %H:%M:%S"}
 
-    logging.config.dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {"default": formatter},
-        "handlers": {
-            "console": {
-                **handlers["console"],
-                "formatter": "default",
-            }
-        },
-        "root": {"level": log_level, "handlers": ["console"]},
-    })
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {"default": formatter},
+            "handlers": {
+                "console": {
+                    **handlers["console"],
+                    "formatter": "default",
+                }
+            },
+            "root": {"level": log_level, "handlers": ["console"]},
+        }
+    )
 
 
 setup_logging()

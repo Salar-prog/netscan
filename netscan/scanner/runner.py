@@ -2,7 +2,6 @@ import asyncio
 import os
 import shutil
 import socket
-import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -122,7 +121,7 @@ class NmapScanner:
 
             state = status_elem.get("state", "down")
             reason = status_elem.get("reason", "unknown")
-            is_up = (state == "up")
+            is_up = state == "up"
 
             ip_address: Optional[str] = None
             mac_address: Optional[str] = None

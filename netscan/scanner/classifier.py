@@ -41,22 +41,26 @@ class StateClassifier:
         old_status = existing.status if existing else None
         last_scanned_at = now
 
-        open_ports = [
-            {
-                "port": p.port,
-                "protocol": p.protocol,
-                "state": p.state,
-                "service": p.service,
-                "product": p.product,
-                "version": p.version,
-                "reason": p.reason,
-            }
-            for p in (probe.open_ports if probe else [])
-        ] if probe else (existing.open_ports if existing else [])
+        open_ports = (
+            [
+                {
+                    "port": p.port,
+                    "protocol": p.protocol,
+                    "state": p.state,
+                    "service": p.service,
+                    "product": p.product,
+                    "version": p.version,
+                    "reason": p.reason,
+                }
+                for p in (probe.open_ports if probe else [])
+            ]
+            if probe
+            else (existing.open_ports if existing else [])
+        )
 
         # Case 1: Manual Reservation Lock
         if existing and existing.status == IPStatus.ASSIGNED_RESERVED:
-            is_active_probe = (probe is not None and probe.is_up)
+            is_active_probe = probe is not None and probe.is_up
             consecutive_misses = 0 if is_active_probe else (existing.consecutive_misses + 1)
             last_seen = now if is_active_probe else existing.last_seen_at
 
@@ -81,7 +85,7 @@ class StateClassifier:
         # Case 2: Positive Probe Response (Host is UP)
         if probe and probe.is_up:
             new_status = IPStatus.ACTIVE_DETECTED
-            state_changed = (old_status != IPStatus.ACTIVE_DETECTED)
+            state_changed = old_status != IPStatus.ACTIVE_DETECTED
             first_seen = existing.first_seen_at if existing and existing.first_seen_at else now
 
             event_type = None

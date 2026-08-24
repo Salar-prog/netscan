@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
 from sqlmodel import Column, Field, JSON, Relationship, SQLModel
 
 
@@ -57,6 +56,7 @@ class Role(str, Enum):
 # ---------------------------------------------------------------------------
 # Database Tables
 # ---------------------------------------------------------------------------
+
 
 class Subnet(SQLModel, table=True):
     __tablename__ = "subnets"

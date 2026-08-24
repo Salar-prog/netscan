@@ -18,16 +18,28 @@ web_router = APIRouter(include_in_schema=False)
 def index_view(request: Request, session: Session = Depends(get_session)):
     subnets = session.exec(select(Subnet)).all()
     subnet_cards = []
-    
+
     total_active = 0
     total_uncertain = 0
     total_available = 0
 
     for s in subnets:
         total_ips = len(expand_cidr_hosts(s.cidr))
-        active_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ACTIVE_DETECTED)).all())
-        uncertain_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.UNCERTAIN_FIREWALLED)).all())
-        reserved_count = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ASSIGNED_RESERVED)).all())
+        active_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ACTIVE_DETECTED)
+            ).all()
+        )
+        uncertain_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.UNCERTAIN_FIREWALLED)
+            ).all()
+        )
+        reserved_count = len(
+            session.exec(
+                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ASSIGNED_RESERVED)
+            ).all()
+        )
         available_count = max(0, total_ips - (active_count + uncertain_count + reserved_count))
 
         total_active += active_count
@@ -35,23 +47,25 @@ def index_view(request: Request, session: Session = Depends(get_session)):
         total_available += available_count
 
         meta = get_subnet_metadata(s.cidr)
-        subnet_cards.append({
-            "id": s.id,
-            "cidr": s.cidr,
-            "name": s.name,
-            "description": s.description,
-            "scan_interval_minutes": s.scan_interval_minutes,
-            "miss_threshold": s.miss_threshold,
-            "quarantine_hours": s.quarantine_hours,
-            "metadata": meta,
-            "stats": {
-                "total": total_ips,
-                "active": active_count,
-                "uncertain": uncertain_count,
-                "reserved": reserved_count,
-                "available": available_count,
+        subnet_cards.append(
+            {
+                "id": s.id,
+                "cidr": s.cidr,
+                "name": s.name,
+                "description": s.description,
+                "scan_interval_minutes": s.scan_interval_minutes,
+                "miss_threshold": s.miss_threshold,
+                "quarantine_hours": s.quarantine_hours,
+                "metadata": meta,
+                "stats": {
+                    "total": total_ips,
+                    "active": active_count,
+                    "uncertain": uncertain_count,
+                    "reserved": reserved_count,
+                    "available": available_count,
+                },
             }
-        })
+        )
 
     return templates.TemplateResponse(
         request=request,
@@ -81,17 +95,21 @@ def matrix_view(subnet_id: uuid.UUID, request: Request, session: Session = Depen
     for host_ip in all_hosts:
         rec = ip_map.get(host_ip)
         if rec:
-            matrix.append({
-                "ip": host_ip,
-                "status": rec.status.value,
-                "hostname": rec.hostname,
-            })
+            matrix.append(
+                {
+                    "ip": host_ip,
+                    "status": rec.status.value,
+                    "hostname": rec.hostname,
+                }
+            )
         else:
-            matrix.append({
-                "ip": host_ip,
-                "status": IPStatus.AVAILABLE_CANDIDATE.value,
-                "hostname": None,
-            })
+            matrix.append(
+                {
+                    "ip": host_ip,
+                    "status": IPStatus.AVAILABLE_CANDIDATE.value,
+                    "hostname": None,
+                }
+            )
 
     return templates.TemplateResponse(
         request=request,
@@ -112,9 +130,7 @@ def ip_drawer_partial(ip_address: str, request: Request, session: Session = Depe
         raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not tracked yet.")
 
     history = session.exec(
-        select(IPHistory)
-        .where(IPHistory.ip_address_id == rec.id)
-        .order_by(IPHistory.timestamp.desc())
+        select(IPHistory).where(IPHistory.ip_address_id == rec.id).order_by(IPHistory.timestamp.desc())
     ).all()
 
     return templates.TemplateResponse(
@@ -133,13 +149,28 @@ def provision_view(request: Request, session: Session = Depends(get_session)):
     subnet_cards = []
     for s in subnets:
         total_ips = len(expand_cidr_hosts(s.cidr))
-        unavailable = len(session.exec(select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status.in_([IPStatus.ACTIVE_DETECTED, IPStatus.ASSIGNED_RESERVED, IPStatus.UNCERTAIN_FIREWALLED]))).all())
-        subnet_cards.append({
-            "id": s.id,
-            "cidr": s.cidr,
-            "name": s.name,
-            "stats": {"available": max(0, total_ips - unavailable)},
-        })
+        unavailable = len(
+            session.exec(
+                select(IPAddress).where(
+                    IPAddress.subnet_id == s.id,
+                    IPAddress.status.in_(
+                        [
+                            IPStatus.ACTIVE_DETECTED,
+                            IPStatus.ASSIGNED_RESERVED,
+                            IPStatus.UNCERTAIN_FIREWALLED,
+                        ]
+                    ),
+                )
+            ).all()
+        )
+        subnet_cards.append(
+            {
+                "id": s.id,
+                "cidr": s.cidr,
+                "name": s.name,
+                "stats": {"available": max(0, total_ips - unavailable)},
+            }
+        )
 
     return templates.TemplateResponse(
         request=request,
