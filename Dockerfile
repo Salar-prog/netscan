@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -e .[test]
 
 COPY . .
 
-RUN useradd -m -s /bin/bash netscan
+RUN useradd -m -s /bin/bash netscan && chown -R netscan:netscan /app
 USER netscan
 
 EXPOSE 8000
