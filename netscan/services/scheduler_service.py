@@ -19,13 +19,14 @@ class ScanScheduler:
     def start(self) -> None:
         if not self.scheduler.running:
             self.scheduler.start()
-            logger.info("NetScan scheduler started.")
             self.sync_all_subnet_jobs()
+            job_count = len(self.scheduler.get_jobs())
+            logger.info("Scheduler started", extra={"extra_data": {"job_count": job_count}})
 
     def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown()
-            logger.info("NetScan scheduler stopped.")
+            logger.info("Scheduler stopped.")
 
     def sync_all_subnet_jobs(self) -> None:
         """Register recurring jobs for all active subnets with interval > 0."""
@@ -40,6 +41,7 @@ class ScanScheduler:
 
         if self.scheduler.get_job(job_id):
             self.scheduler.remove_job(job_id)
+            logger.info("Removed scheduler job", extra={"extra_data": {"job_id": job_id, "subnet_cidr": subnet.cidr}})
 
         if subnet.is_active and subnet.scan_interval_minutes > 0:
             self.scheduler.add_job(
@@ -50,27 +52,37 @@ class ScanScheduler:
                 args=[subnet.id],
                 replace_existing=True,
             )
-            logger.info(f"Scheduled scan for {subnet.cidr} every {subnet.scan_interval_minutes}m.")
+            logger.info(
+                "Scheduled scan",
+                extra={"extra_data": {"subnet_cidr": subnet.cidr, "interval_minutes": subnet.scan_interval_minutes, "job_id": job_id}},
+            )
 
     def remove_subnet_job(self, subnet_id: uuid.UUID) -> None:
         job_id = f"subnet_scan_{subnet_id}"
         if self.scheduler.get_job(job_id):
             self.scheduler.remove_job(job_id)
+            logger.info("Removed scheduler job", extra={"extra_data": {"job_id": job_id}})
 
     @staticmethod
     async def trigger_scheduled_scan(subnet_id: uuid.UUID) -> None:
-        with Session(engine) as session:
-            job = ScanJob(
-                subnet_id=subnet_id,
-                status=ScanStatus.QUEUED,
-                triggered_by=TriggerType.SCHEDULE,
-            )
-            session.add(job)
-            session.commit()
-            session.refresh(job)
-            scan_job_id = job.id
+        try:
+            with Session(engine) as session:
+                job = ScanJob(
+                    subnet_id=subnet_id,
+                    status=ScanStatus.QUEUED,
+                    triggered_by=TriggerType.SCHEDULE,
+                )
+                session.add(job)
+                session.commit()
+                session.refresh(job)
+                scan_job_id = job.id
 
-        await scan_service.execute_scan(scan_job_id)
+            await scan_service.execute_scan(scan_job_id)
+        except Exception as e:
+            logger.error(
+                "Scheduled scan failed",
+                extra={"extra_data": {"subnet_id": str(subnet_id), "error": str(e)}},
+            )
 
 
 scheduler = ScanScheduler()
