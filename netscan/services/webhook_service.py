@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 import httpx
@@ -54,12 +55,24 @@ class WebhookDispatcher:
                 }
 
                 for attempt in range(settings.WEBHOOK_MAX_RETRIES):
+                    attempt_start = time.monotonic()
                     try:
                         response = await client.post(wh.url, content=payload_bytes, headers=headers)
+                        duration_ms = int((time.monotonic() - attempt_start) * 1000)
                         if response.is_success:
-                            logger.info(f"Webhook '{wh.name}' delivered successfully for event {event_name}")
+                            logger.info(
+                                "Webhook delivered",
+                                extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "status_code": response.status_code, "duration_ms": duration_ms}},
+                            )
                             break
                         else:
-                            logger.warning(f"Webhook '{wh.name}' returned status {response.status_code} on attempt {attempt + 1}")
+                            logger.warning(
+                                "Webhook returned error",
+                                extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "status_code": response.status_code, "attempt": attempt + 1, "duration_ms": duration_ms}},
+                            )
                     except Exception as e:
-                        logger.error(f"Webhook '{wh.name}' delivery error on attempt {attempt + 1}: {e}")
+                        duration_ms = int((time.monotonic() - attempt_start) * 1000)
+                        logger.error(
+                            "Webhook delivery failed",
+                            extra={"extra_data": {"webhook_name": wh.name, "event": event_name, "error": str(e), "attempt": attempt + 1, "duration_ms": duration_ms}},
+                        )
