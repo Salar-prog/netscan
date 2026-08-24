@@ -208,7 +208,7 @@ def get_subnet_ip_matrix(
 
 
 @router.post("/{subnet_id}/scan")
-def trigger_subnet_scan(
+async def trigger_subnet_scan(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),
     current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
