@@ -1,7 +1,4 @@
-import pytest
 from fastapi.testclient import TestClient
-from netscan.main import app
-from netscan.models import Subnet
 
 
 def test_dashboard_views(client: TestClient):

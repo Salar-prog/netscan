@@ -84,9 +84,7 @@ async def queue_job_and_execute(db_engine, subnet_id):
 
 async def test_successful_scan_creates_records_and_stats(db_engine, monkeypatch):
     subnet_id = create_subnet(db_engine)
-    monkeypatch.setattr(
-        scan_service, "scanner", FakeScanner(results={"10.0.0.1": make_probe("10.0.0.1")})
-    )
+    monkeypatch.setattr(scan_service, "scanner", FakeScanner(results={"10.0.0.1": make_probe("10.0.0.1")}))
     job_id = await queue_job_and_execute(db_engine, subnet_id)
 
     with Session(db_engine) as session:
@@ -156,9 +154,7 @@ async def test_scanner_exception_marks_job_failed(db_engine, monkeypatch):
         assert refreshed.completed_at is not None
 
 
-async def test_second_scan_updates_existing_records_and_audits_state_change(
-    db_engine, monkeypatch
-):
+async def test_second_scan_updates_existing_records_and_audits_state_change(db_engine, monkeypatch):
     subnet_id = create_subnet(db_engine)
 
     monkeypatch.setattr(
@@ -166,7 +162,7 @@ async def test_second_scan_updates_existing_records_and_audits_state_change(
         "scanner",
         FakeScanner(results={"10.0.0.1": make_probe("10.0.0.1"), "10.0.0.2": make_probe("10.0.0.2")}),
     )
-    first_job_id = await queue_job_and_execute(db_engine, subnet_id)
+    await queue_job_and_execute(db_engine, subnet_id)
 
     with Session(db_engine) as session:
         rec = session.exec(select(IPAddress).where(IPAddress.ip == "10.0.0.2")).first()
@@ -183,9 +179,7 @@ async def test_second_scan_updates_existing_records_and_audits_state_change(
         assert rec.status == IPStatus.UNCERTAIN_FIREWALLED
         assert rec.consecutive_misses == 1
 
-        change_events = session.exec(
-            select(IPHistory).where(IPHistory.event_type == EventType.STATE_CHANGE)
-        ).all()
+        change_events = session.exec(select(IPHistory).where(IPHistory.event_type == EventType.STATE_CHANGE)).all()
         assert len(change_events) == 2
         for evt in change_events:
             assert evt.old_status == IPStatus.ACTIVE_DETECTED.value

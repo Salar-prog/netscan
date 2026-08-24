@@ -96,9 +96,7 @@ def test_remove_subnet_job(db_engine, sched):
     sched.remove_subnet_job(subnet.id)
 
 
-async def test_trigger_scheduled_scan_creates_queued_job_and_executes(
-    db_engine, sched, monkeypatch
-):
+async def test_trigger_scheduled_scan_creates_queued_job_and_executes(db_engine, sched, monkeypatch):
     fake = FakeScanService()
     monkeypatch.setattr(scheduler_module, "scan_service", fake)
 

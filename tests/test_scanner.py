@@ -174,4 +174,3 @@ def test_build_nmap_args_raises_when_nmap_missing():
 
     with pytest.raises(RuntimeError):
         scanner.build_nmap_args("192.168.1.0/24")
-
