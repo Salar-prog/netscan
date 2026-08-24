@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "*"
 
+    # Logging
+    LOG_FORMAT: str = "text"  # "text" for dev, "json" for production
+    LOG_LEVEL: str = "INFO"
+
     # Webhook Defaults
     WEBHOOK_TIMEOUT_SECONDS: int = 10
     WEBHOOK_MAX_RETRIES: int = 3

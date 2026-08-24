@@ -1,5 +1,8 @@
+import json
 import logging
+import logging.config
 import shutil
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +16,46 @@ from netscan.limiter import limiter
 from netscan.services.scheduler_service import scheduler
 from netscan.web.views import web_router
 
-logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if hasattr(record, "extra_data"):
+            log_entry["extra"] = record.extra_data
+        if record.exc_info and record.exc_info[0]:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry, default=str)
+
+
+def setup_logging():
+    log_level = logging.DEBUG if settings.DEBUG else getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    handlers = {"console": {"class": "logging.StreamHandler", "level": log_level}}
+
+    if settings.LOG_FORMAT == "json":
+        formatter = {"()": "netscan.main.JSONFormatter"}
+    else:
+        formatter = {"format": "%(asctime)s %(levelname)-8s %(name)s: %(message)s", "datefmt": "%Y-%m-%d %H:%M:%S"}
+
+    logging.config.dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"default": formatter},
+        "handlers": {
+            "console": {
+                **handlers["console"],
+                "formatter": "default",
+            }
+        },
+        "root": {"level": log_level, "handlers": ["console"]},
+    })
+
+
+setup_logging()
 logger = logging.getLogger("netscan")
 
 
