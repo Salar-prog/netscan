@@ -158,3 +158,10 @@ Additional fixes:
 - Fixed line-length violations in subnets.py, scan_service.py, scheduler_service.py, webhook_service.py, views.py (E501)
 - Fixed trailing whitespace in views.py (W293)
 - Auto-formatted all files with `ruff format`
+
+---
+
+## Phase 8: Modular UI Web-Dashboard (PLANNED)
+
+No changes yet. This phase will break the monolithic web dashboard into
+domain-specific modules and add export functionality.

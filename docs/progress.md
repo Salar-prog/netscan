@@ -121,6 +121,19 @@ Post-merge fix: switched scan duration measurement from `datetime.now(timezone.u
 
 ---
 
+## Phase 8: Modular UI Web-Dashboard (PLANNED)
+
+**Status:** NEXT UP
+
+| Item | Status | Notes |
+|------|--------|-------|
+| 8.1 Modular dashboard architecture | Planned | Break monolithic views.py into domain-specific modules |
+| 8.2 CSV/JSON export | Planned | Export IP data for Terraform/Ansible/spreadsheets |
+| 8.3 Dashboard polish | Planned | Auto-refresh, mobile layout, dark mode |
+| 8.4 RBAC route enforcement | Planned | Enforce admin/operator/read_only on API routes |
+
+---
+
 ## Summary
 
 | Phase | Status | Tests |
@@ -132,3 +145,4 @@ Post-merge fix: switched scan duration measurement from `datetime.now(timezone.u
 | Phase 5 | COMPLETE | 65/65 pass |
 | Phase 6 | COMPLETE | 65/65 pass |
 | Phase 7 | COMPLETE | 65/65 pass |
+| Phase 8 | PLANNED | — |
