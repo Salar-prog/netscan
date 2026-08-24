@@ -73,13 +73,20 @@ alembic/           # Database migrations
    pytest -v
    ```
 
-4. Push and open a pull request against `main`.
+4. Run linter and formatter:
+   ```bash
+   ruff check netscan/
+   ruff format --check netscan/
+   ```
+
+5. Push and open a pull request against `main`. CI will run automatically (lint, test, Docker build).
 
 ## Code Style
 
 - Follow existing patterns in the codebase.
 - Use type hints on function signatures.
 - Keep functions small and focused.
+- Run `ruff check` and `ruff format` before committing (config in `pyproject.toml`).
 - No new dependencies without discussion (open an issue first).
 
 ## Reporting Issues

@@ -1,6 +1,4 @@
-import pytest
 from fastapi.testclient import TestClient
-from netscan.main import app
 from netscan.models import IPStatus
 
 
@@ -141,8 +139,7 @@ def test_patch_ip_reserve_and_history(auth_db):
     subnet_id = seed_subnet(engine)
     seed_ip(engine, subnet_id, "192.168.77.10")
 
-    patch = {"is_reserved": True, "hostname": "printer.corp",
-             "custom_metadata": {"owner": "infra-team"}}
+    patch = {"is_reserved": True, "hostname": "printer.corp", "custom_metadata": {"owner": "infra-team"}}
     res = client.patch("/api/v1/ips/192.168.77.10", json=patch, headers=headers)
     assert res.status_code == 200
     data = res.json()

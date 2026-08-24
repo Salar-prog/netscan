@@ -21,6 +21,10 @@ uvicorn netscan.main:app --host 0.0.0.0 --port 8000 --reload
 # Run tests
 pytest -v
 
+# Lint and format
+ruff check netscan/
+ruff format --check netscan/
+
 # Database migrations (Alembic)
 alembic upgrade head
 ```
@@ -49,6 +53,7 @@ netscan/
   config.py        # Settings via pydantic-settings
   models.py        # SQLModel schemas (Subnet, IPAddress, ScanJob, IPHistory, Webhook, ApiKey)
   db.py            # Engine + get_session dependency
+  limiter.py       # Shared slowapi RateLimiter instance
   main.py          # FastAPI app factory, lifespan, middleware, rate limiting
 tests/             # pytest suite (conftest.py has shared fixtures)
 alembic/           # DB migrations
@@ -62,6 +67,7 @@ alembic/           # DB migrations
 - Tests override the `get_session` dependency; they do not touch disk or require nmap/API keys.
 - pytest asyncio mode is `auto` — async test functions work without decorators.
 - Run the full suite (`pytest -v`) before pushing anything.
+- CI (GitHub Actions) runs automatically on every push to `main` and every PR: lint, test (Python 3.10+3.12), Docker build.
 
 ## Code Conventions
 

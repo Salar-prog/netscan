@@ -100,20 +100,61 @@ Every actual change made, mapped to the stage that produced it.
 
 ---
 
-## Phase 6: Observability (feat/observability branch)
+## Phase 5: Test Coverage Gaps
 
-### Stage 6.1 — Structured logging config
+### PR #2 (feat/phase5-test-coverage)
+
+- `tests/test_auth_roles.py`: 5 tests for role-based access control (read_only, operator, admin, revoked key, key hash hiding)
+- `tests/test_scan_service.py`: 4 tests for scan orchestration (success, missing subnet, scanner failure, state-change audit)
+- `tests/test_scheduler_service.py`: 6 tests for scheduler logic (schedule/skip/remove subnets, trigger scan)
+- `tests/test_webhook_service.py`: 6 tests for webhook dispatch (HMAC signature, event filtering, wildcard subscriptions, retry/give-up)
+- `tests/test_scanner.py`: 14 tests for nmap XML parsing, reason-to-method mapping, build_nmap_args branches
+- `tests/test_classifier.py`: 11 tests for edge cases (unseen hosts, miss/quarantine independence, recovery paths)
+
+Additional fixes:
+- **fix:** `netscan/api/v1/subnets.py`: scan trigger endpoint made async (was sync but used `asyncio.create_task`)
+- **fix:** `netscan/services/scan_service.py`: capture `subnet.cidr` and `job.subnet_id` inside session to avoid DetachedInstanceError
+
+---
+
+## Phase 6: Observability
+
+### Stage 6.1 -- Structured logging config
 - `netscan/config.py`: Added `LOG_FORMAT` and `LOG_LEVEL` settings
 - `netscan/main.py`: Replaced `logging.basicConfig` with `logging.config.dictConfig`; added `JSONFormatter` class; added `AccessLogMiddleware`
 
-### Stage 6.2 — Scan service logging
+### Stage 6.2 -- Scan service logging
 - `netscan/services/scan_service.py`: Added structured logging for scan started, scan completed (with duration_ms), scan failed (with error)
 
-### Stage 6.3 — Webhook dispatch logging
+### Stage 6.3 -- Webhook dispatch logging
 - `netscan/services/webhook_service.py`: Added structured logging for webhook delivered (status_code, duration_ms) and webhook delivery failed (error, attempt, duration_ms)
 
-### Stage 6.4 — Access logging middleware
+### Stage 6.4 -- Access logging middleware
 - `netscan/main.py`: Added `AccessLogMiddleware` ASGI middleware logging method, path, status_code, duration_ms, client_ip; exempt `/health`; log level based on status code
 
-### Stage 6.5 — Scheduler failure logging
+### Stage 6.5 -- Scheduler failure logging
 - `netscan/services/scheduler_service.py`: Added structured logging for scheduler started (job_count), job registration/removal, wrapped `trigger_scheduled_scan` in try/except with error logging
+
+### Post-merge fix
+- `netscan/services/scan_service.py`: Switched from `datetime.now(timezone.utc)` to `time.monotonic()` for scan duration measurement (SQLite returns naive datetimes, causing subtraction with aware datetime to fail)
+- `netscan/services/scan_service.py`: Removed duplicate `logger.exception` line left from merge
+
+---
+
+## Phase 7: CI/CD
+
+### Stage 7.1 -- Ruff config
+- `pyproject.toml`: Added `[tool.ruff]` section with `line-length = 120`, `target-version = "py310"`, `select = ["E", "F", "W"]`
+
+### Stage 7.2 -- GitHub Actions workflow
+- `.github/workflows/ci.yml`: 3 parallel jobs triggered on push to main and PRs:
+  - `test`: Python 3.10 + 3.12 matrix, `pytest -v`
+  - `lint`: `ruff check` + `ruff format --check`
+  - `docker`: Build image, start container, hit `/health`
+
+### Stage 7.3 -- Fix lint violations
+- Removed unused imports across 10 files (F401)
+- Fixed boolean comparisons: `Column.is_active == True` → `Column.is_active` in auth.py, scheduler_service.py, webhook_service.py (E712)
+- Fixed line-length violations in subnets.py, scan_service.py, scheduler_service.py, webhook_service.py, views.py (E501)
+- Fixed trailing whitespace in views.py (W293)
+- Auto-formatted all files with `ruff format`

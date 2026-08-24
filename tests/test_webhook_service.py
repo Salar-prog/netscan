@@ -38,9 +38,7 @@ class FakeAsyncClient:
         return False
 
     async def post(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append(
-            {"url": url, "content": content, "headers": headers}
-        )
+        FakeAsyncClient.calls.append({"url": url, "content": content, "headers": headers})
         statuses = self.script.setdefault(url, [200])
         status = statuses.pop(0) if len(statuses) > 1 else statuses[0]
         return FakeResponse(status)
@@ -117,9 +115,7 @@ async def test_dispatch_sends_signed_snapshot_payload(db_engine, patch_client):
     assert payload["data"] == data
     assert "timestamp" in payload
 
-    expected_sig = hmac.new(
-        b"test-secret", call["content"], hashlib.sha256
-    ).hexdigest()
+    expected_sig = hmac.new(b"test-secret", call["content"], hashlib.sha256).hexdigest()
     assert call["headers"]["X-NetScan-Signature"] == expected_sig
     assert call["headers"]["X-NetScan-Event"] == "ip.state_changed"
 

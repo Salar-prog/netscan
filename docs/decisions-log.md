@@ -4,13 +4,33 @@ Every clarifying question asked and the answer given. Most recent first.
 
 ---
 
+## 2026-08-24: CI/CD tooling
+
+**Q: Ruff vs flake8 + black + isort?**
+A: Ruff. Single tool for linting and formatting, 10-100x faster than alternatives, config lives in pyproject.toml. No reason to install 3 separate tools.
+
+**Q: How many CI jobs?**
+A: Three parallel jobs: `test` (Python matrix), `lint` (ruff check + format), `docker` (build + health check). Minimal, fast, covers the failure modes that matter.
+
+**Q: Should ruff format be enforced in CI?**
+A: Yes. `ruff format --check` in CI prevents style drift. The formatter is opinionated — that's the point.
+
+---
+
+## 2026-08-24: SQLModel boolean queries
+
+**Q: `Column.is_active == True` or `Column.is_active`?**
+A: Direct `Column.is_active`. In SQLModel/SQLAlchemy, boolean columns are truthy by default in WHERE clauses. The `== True` pattern triggers ruff E712 and is redundant.
+
+---
+
 ## 2026-08-24: Open-source repo setup
 
 **Q: What license?**
 A: MIT
 
 **Q: Public or private?**
-A: Private for now, maybe public later.
+A: Public.
 
 **Q: Should PLAN.md and walkthrough.md be kept or removed before going public?**
 A: Keep them in the repo for now (team collaboration). Remove or gitignore before final public launch.

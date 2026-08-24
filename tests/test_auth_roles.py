@@ -1,5 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
 from netscan.models import Role
 
 
@@ -19,9 +17,7 @@ def test_read_only_can_access_reads_but_not_writes(make_key_headers):
     )
     assert create_res.status_code == 403
 
-    key_create_res = client.post(
-        "/api/v1/auth/keys", json={"name": "RO Key"}, headers=headers
-    )
+    key_create_res = client.post("/api/v1/auth/keys", json={"name": "RO Key"}, headers=headers)
     assert key_create_res.status_code == 403
 
 
@@ -41,14 +37,13 @@ def test_operator_can_write_subnets_and_ips_but_not_manage_keys(make_key_headers
     assert scan_res.status_code == 200
 
     ip_res = client.post(
-        "/api/v1/subnets", json={"cidr": "10.20.0.4/30", "name": "Op Pool 2"},
+        "/api/v1/subnets",
+        json={"cidr": "10.20.0.4/30", "name": "Op Pool 2"},
         headers=operator,
     )
     assert ip_res.status_code == 201
 
-    key_create_res = client.post(
-        "/api/v1/auth/keys", json={"name": "Op Key"}, headers=operator
-    )
+    key_create_res = client.post("/api/v1/auth/keys", json={"name": "Op Key"}, headers=operator)
     assert key_create_res.status_code == 403
 
     keys_list = client.get("/api/v1/auth/keys", headers=operator).json()
@@ -61,7 +56,8 @@ def test_admin_can_manage_keys_and_writes(make_key_headers):
     admin = make_headers(Role.ADMIN)
 
     res = client.post(
-        "/api/v1/auth/keys", json={"name": "Admin Created", "role": Role.READ_ONLY.value},
+        "/api/v1/auth/keys",
+        json={"name": "Admin Created", "role": Role.READ_ONLY.value},
         headers=admin,
     )
     assert res.status_code == 201
@@ -71,7 +67,8 @@ def test_admin_can_manage_keys_and_writes(make_key_headers):
     assert del_res.status_code == 204
 
     subnet_res = client.post(
-        "/api/v1/subnets", json={"cidr": "10.30.0.0/30", "name": "Admin Pool"},
+        "/api/v1/subnets",
+        json={"cidr": "10.30.0.0/30", "name": "Admin Pool"},
         headers=admin,
     )
     assert subnet_res.status_code == 201
@@ -108,5 +105,11 @@ def test_list_keys_does_not_expose_key_hash(make_key_headers):
     for key in keys:
         assert "key_hash" not in key
     assert set(keys[0].keys()) == {
-        "id", "name", "prefix", "role", "is_active", "last_used_at", "created_at",
+        "id",
+        "name",
+        "prefix",
+        "role",
+        "is_active",
+        "last_used_at",
+        "created_at",
     }

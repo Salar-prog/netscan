@@ -24,7 +24,7 @@ Gotchas, false starts, and things that didn't work and why.
 
 ---
 
-# Missing pyproject.toml
+## Missing pyproject.toml
 
 **Problem:** The original repo had no `pyproject.toml`. `pip install -e .` failed immediately.
 
@@ -101,3 +101,23 @@ Gotchas, false starts, and things that didn't work and why.
 **Fix:** Store plaintext, return once at creation, hide from list endpoint.
 
 **Lesson:** Before hashing any secret, check if it needs to be used for signing/verification.
+
+---
+
+## Timezone-aware/naive datetime mismatch with SQLite
+
+**Problem:** `scan_service.py` used `scan_start = datetime.now(timezone.utc)` (timezone-aware) for duration measurement. When `job.completed_at` was set to `datetime.now(timezone.utc)` and read back from SQLite, it came back as a naive datetime (no timezone info). Subtracting aware from naive raises `TypeError: can't subtract offset-naive and offset-aware datetimes`.
+
+**Fix:** Switched to `time.monotonic()` for duration measurement. `scan_start = time.monotonic()`, then `duration_ms = int((time.monotonic() - scan_start) * 1000)`. The `started_at` and `completed_at` fields still use `datetime.now(timezone.utc)` for display, but duration is measured with monotonic clock.
+
+**Lesson:** SQLite doesn't preserve timezone info. Never use datetime arithmetic for durations across session boundaries — use `time.monotonic()` instead.
+
+---
+
+## Ruff format vs manual line wrapping
+
+**Problem:** After fixing ruff E501 (line too long) violations by manually breaking lines, `ruff format --check` still failed because the formatter wanted different line breaks (e.g., dict literals, function calls, list comprehensions).
+
+**Fix:** Ran `ruff format netscan/` to let the formatter handle all line wrapping. Manual line breaks were fighting the formatter's rules. Let the tool do it.
+
+**Lesson:** Don't manually fix line-length violations if you're using ruff format. Fix the logical structure first (unused imports, boolean comparisons), then let `ruff format` handle the whitespace. Run `ruff format --check` last.
