@@ -57,22 +57,22 @@ Live status of implementation phases.
 
 ## Phase 4: Health Check & Observability
 
-**Status:** PARTIALLY COMPLETE
+**Status:** COMPLETE (merged into Phase 6)
 
 | Item | Status | Notes |
 |------|--------|-------|
 | 4.1 Health check with real status | Done | Verifies DB + nmap, returns degraded if unhealthy |
-| 4.2 JSON structured logging | PENDING | Current: plain text basicConfig |
-| 4.3 Scan service structured logging | PENDING | Missing: subnet_cidr, scan_job_id, duration_ms |
-| 4.4 Scheduler failure logging | PENDING | Scan failures not logged |
-| 4.5 Webhook dispatch logging | PENDING | Success/failure/retry not logged |
+| 4.2 JSON structured logging | Done | Implemented in Phase 6 |
+| 4.3 Scan service structured logging | Done | Implemented in Phase 6 |
+| 4.4 Scheduler failure logging | Done | Implemented in Phase 6 |
+| 4.5 Webhook dispatch logging | Done | Implemented in Phase 6 |
 
 ---
 
 ## Phase 5: Test Coverage Gaps
 
 **Status:** COMPLETE
-**Commit:** `feat/phase5-test-coverage`
+**PR:** #2 (feat/phase5-test-coverage, merged to main)
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -91,11 +91,10 @@ Additional fixes made while writing tests:
 
 ---
 
-## Phase 6: Observability (feat/observability branch)
+## Phase 6: Observability
 
 **Status:** COMPLETE
-**Branch:** `feat/observability`
-**Commits:** 5 stages, all on feature branch
+**PR:** #3 (feat/observability, merged to main)
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -104,6 +103,21 @@ Additional fixes made while writing tests:
 | 6.3 Webhook dispatch logging | Done | Log delivery success/failure with webhook_name, status_code, duration_ms |
 | 6.4 Access logging middleware | Done | ASGI middleware logging method, path, status_code, duration_ms, client_ip |
 | 6.5 Scheduler failure logging | Done | Log job registration/removal, try/except on trigger_scheduled_scan |
+
+Post-merge fix: switched scan duration measurement from `datetime.now(timezone.utc)` to `time.monotonic()` to avoid SQLite naive/aware datetime mismatch.
+
+---
+
+## Phase 7: CI/CD
+
+**Status:** COMPLETE
+**PR:** #4 (feat/ci-cd, merged to main)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| 7.1 Ruff config | Done | Added to pyproject.toml: E/F/W rules, line-length 120, target py310 |
+| 7.2 GitHub Actions workflow | Done | 3 parallel jobs: test (Python 3.10+3.12), lint (ruff), docker (build+health) |
+| 7.3 Fix lint violations | Done | Unused imports, boolean comparisons, line length, formatting |
 
 ---
 
@@ -114,5 +128,7 @@ Additional fixes made while writing tests:
 | Phase 1 | COMPLETE | 19/19 pass |
 | Phase 2 | COMPLETE | 19/19 pass |
 | Phase 3 | COMPLETE | 19/19 pass |
-| Phase 4 | COMPLETE | 19/19 pass |
-| Phase 5 | COMPLETE | 64/64 pass |
+| Phase 4 | COMPLETE | (merged into Phase 6) |
+| Phase 5 | COMPLETE | 65/65 pass |
+| Phase 6 | COMPLETE | 65/65 pass |
+| Phase 7 | COMPLETE | 65/65 pass |

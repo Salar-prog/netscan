@@ -1,5 +1,7 @@
 # NetScan
 
+[![CI](https://github.com/Salar-prog/netscan/actions/workflows/ci.yml/badge.svg)](https://github.com/Salar-prog/netscan/actions/workflows/ci.yml)
+
 Production-grade IP discovery and availability tracking platform.
 
 NetScan reconciles active network probes (L2 ARP, L3 ICMP, L4 TCP SYN) with managed subnet pools to provide safe, real-time visibility into which IP addresses are active, quarantined, reserved, or available for allocation.
@@ -73,6 +75,8 @@ All settings are configured via environment variables or a `.env` file in the pr
 | `NMAP_TIMEOUT_SECONDS` | `300` | Per-scan timeout |
 | `WEBHOOK_TIMEOUT_SECONDS` | `10` | Outbound webhook timeout |
 | `WEBHOOK_MAX_RETRIES` | `3` | Webhook delivery retry count |
+| `LOG_FORMAT` | `text` | Log format: `text` or `json` |
+| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 
 ## API Key Setup
 
@@ -123,7 +127,14 @@ pip install -e ".[test]"
 pytest -v
 ```
 
-The test suite uses an in-memory SQLite database and does not require nmap or API keys.
+Linting and formatting:
+
+```bash
+ruff check netscan/
+ruff format --check netscan/
+```
+
+The test suite uses an in-memory SQLite database and does not require nmap or API keys. CI runs automatically on every push and PR via GitHub Actions.
 
 ## License
 
