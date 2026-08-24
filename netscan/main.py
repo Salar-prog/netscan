@@ -1,12 +1,15 @@
 import logging
+import shutil
 from contextlib import asynccontextmanager
-from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 from netscan.api.v1.router import api_v1_router
 from netscan.config import settings
-from netscan.db import init_db
+from netscan.db import init_db, engine
+from netscan.limiter import limiter
 from netscan.services.scheduler_service import scheduler
 from netscan.web.views import web_router
 
@@ -16,6 +19,7 @@ logger = logging.getLogger("netscan")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings.validate_for_production()
     logger.info("Initializing NetScan database...")
     init_db()
     logger.info("Starting NetScan scheduler...")
@@ -33,18 +37,16 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Static and Web UI mounting
-static_path = Path(__file__).parent / "web" / "static"
-app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
 # Mount Routers
 app.include_router(api_v1_router)
@@ -52,5 +54,20 @@ app.include_router(web_router)
 
 
 @app.get("/health", tags=["System"])
-def health_check():
-    return {"status": "healthy", "service": "NetScan", "version": "0.1.0"}
+@limiter.exempt
+def health_check(request: Request):
+    checks = {"database": "ok", "nmap": "ok"}
+    status_code = "healthy"
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        checks["database"] = "unavailable"
+        status_code = "degraded"
+
+    if not shutil.which("nmap"):
+        checks["nmap"] = "not found"
+        status_code = "degraded"
+
+    return {"status": status_code, "service": "NetScan", "version": "0.1.0", "checks": checks}

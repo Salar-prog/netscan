@@ -51,6 +51,39 @@ def create_api_key(
     }
 
 
+@router.post("/bootstrap", status_code=status.HTTP_201_CREATED)
+def bootstrap_first_key(
+    payload: ApiKeyCreate,
+    session: Session = Depends(get_session),
+):
+    """Create the first API key when no keys exist. Disabled once any key exists."""
+    existing = session.exec(select(ApiKey)).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bootstrap disabled: API keys already exist. Use POST /api/v1/auth/keys with a valid key.",
+        )
+    raw_key, key_hash, prefix = generate_api_key()
+    api_key_rec = ApiKey(
+        name=payload.name,
+        key_hash=key_hash,
+        prefix=prefix,
+        role=Role.ADMIN,
+        is_active=True,
+    )
+    session.add(api_key_rec)
+    session.commit()
+    session.refresh(api_key_rec)
+    return {
+        "id": api_key_rec.id,
+        "name": api_key_rec.name,
+        "prefix": api_key_rec.prefix,
+        "role": api_key_rec.role,
+        "raw_key": raw_key,
+        "message": "Store this key safely! It will never be shown again. This is the bootstrap key (role: admin).",
+    }
+
+
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_key(
     key_id: uuid.UUID,

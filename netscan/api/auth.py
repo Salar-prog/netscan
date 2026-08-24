@@ -26,12 +26,7 @@ async def get_current_api_key(
     header_key: Optional[str] = Security(api_key_header),
     session: Session = Depends(get_session),
 ) -> Optional[ApiKey]:
-    """Validate API key. If no keys exist in DB, allows open access for setup."""
-    existing_keys_count = session.exec(select(ApiKey)).first()
-    if not existing_keys_count:
-        # Initial open mode: allow access until first API key is created
-        return None
-
+    """Validate API key. No keys in DB = no access (create first key via CLI or direct DB)."""
     if not header_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

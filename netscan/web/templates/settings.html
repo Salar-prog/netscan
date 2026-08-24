@@ -25,7 +25,7 @@
 
         <div class="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
             {% if not keys %}
-            <div class="p-6 text-center text-xs text-slate-500">No API keys created yet. Currently running in open setup mode.</div>
+            <div class="p-6 text-center text-xs text-slate-500">No API keys created yet. Create your first key to get started.</div>
             {% endif %}
             {% for k in keys %}
             <div class="p-4 flex items-center justify-between bg-slate-950/40 text-xs">
@@ -119,10 +119,7 @@
                 <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Endpoint URL</label>
                 <input type="url" name="url" required placeholder="https://api.mycorp.com/hooks/netscan" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none font-mono">
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Signing Secret</label>
-                <input type="text" name="secret" required placeholder="Shared secret for HMAC-SHA256" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none font-mono">
-            </div>
+            <p class="text-xs text-slate-500">A signing secret will be generated automatically and shown once upon creation.</p>
             <div class="flex justify-end space-x-2 pt-2">
                 <button type="button" onclick="document.getElementById('webhook-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-800 text-slate-300 text-sm rounded-lg">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">Register</button>

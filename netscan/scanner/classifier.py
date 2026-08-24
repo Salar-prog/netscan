@@ -23,7 +23,7 @@ class ClassificationOutcome:
     last_seen_at: Optional[datetime]
     last_scanned_at: datetime
     event_type: Optional[EventType] = None
-    event_details: Dict[str, Any] = None
+    event_details: Optional[Dict[str, Any]] = None
 
 
 class StateClassifier:

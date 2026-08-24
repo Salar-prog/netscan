@@ -1,8 +1,9 @@
 import asyncio
+import secrets
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import AnyHttpUrl, BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key
 from netscan.db import get_session
@@ -14,37 +15,66 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 class WebhookCreate(BaseModel):
     name: str
-    url: str
-    secret: str
+    url: AnyHttpUrl
     events: List[str] = ["ip.state_changed", "scan.completed"]
     is_active: bool = True
 
 
-@router.get("", response_model=List[Webhook])
+class WebhookResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    url: str
+    events: List[str]
+    is_active: bool
+    created_at: str
+
+
+@router.get("", response_model=List[WebhookResponse])
 def list_webhooks(
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),
 ):
-    return session.exec(select(Webhook)).all()
+    webhooks = session.exec(select(Webhook)).all()
+    return [
+        WebhookResponse(
+            id=wh.id,
+            name=wh.name,
+            url=wh.url,
+            events=wh.events,
+            is_active=wh.is_active,
+            created_at=str(wh.created_at),
+        )
+        for wh in webhooks
+    ]
 
 
-@router.post("", response_model=Webhook, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_webhook(
     payload: WebhookCreate,
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),
 ):
+    raw_secret = secrets.token_urlsafe(32)
     wh = Webhook(
         name=payload.name,
-        url=payload.url,
-        secret=payload.secret,
+        url=str(payload.url),
+        secret=raw_secret,
         events=payload.events,
         is_active=payload.is_active,
     )
     session.add(wh)
     session.commit()
     session.refresh(wh)
-    return wh
+    return {
+        "id": wh.id,
+        "name": wh.name,
+        "url": wh.url,
+        "secret": raw_secret,
+        "events": wh.events,
+        "is_active": wh.is_active,
+        "created_at": wh.created_at,
+        "message": "Store this secret safely! It will never be shown again.",
+    }
 
 
 @router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
