@@ -49,12 +49,14 @@ class ScanService:
             job.started_at = datetime.now(timezone.utc)
             session.add(job)
             session.commit()
+            subnet_cidr = subnet.cidr
+            job_subnet_id = job.subnet_id
 
         # Execute discovery probe asynchronously outside DB transaction
         try:
-            probe_results = await self.scanner.scan_cidr(subnet.cidr, scan_ports=True)
+            probe_results = await self.scanner.scan_cidr(subnet_cidr, scan_ports=True)
         except Exception as e:
-            logger.exception(f"Error scanning CIDR {subnet.cidr}: {e}")
+            logger.exception(f"Error scanning CIDR {subnet_cidr}: {e}")
             with Session(engine) as session:
                 job = session.get(ScanJob, scan_job_id)
                 if job:
@@ -67,7 +69,7 @@ class ScanService:
 
         # Reconcile probe results against existing IP records
         with Session(engine) as session:
-            subnet = session.get(Subnet, job.subnet_id)
+            subnet = session.get(Subnet, job_subnet_id)
             all_hosts = expand_cidr_hosts(subnet.cidr)
             
             # Fetch existing IP records for this subnet

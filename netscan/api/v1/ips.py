@@ -3,13 +3,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
-from netscan.api.auth import get_current_api_key
+from netscan.api.auth import get_current_api_key, require_role
 from netscan.db import get_session
 from netscan.models import (
     EventType,
     IPAddress,
     IPHistory,
     IPStatus,
+    Role,
     Subnet,
     utc_now,
 )
@@ -120,7 +121,7 @@ def update_ip_reservation(
     ip_address: str,
     payload: IPReservationUpdate,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     """Reserve, unreserve, or attach custom metadata to an IP."""
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()

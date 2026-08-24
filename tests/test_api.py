@@ -110,3 +110,104 @@ def test_api_key_management(auth_client):
     # 5. Revoke first key
     del_res = client.delete(f"/api/v1/auth/keys/{key_id}", headers=headers)
     assert del_res.status_code == 204
+
+
+def seed_ip(engine, subnet_id, ip, status=IPStatus.AVAILABLE_CANDIDATE, **kwargs):
+    from sqlmodel import Session
+    from netscan.models import IPAddress
+
+    with Session(engine) as session:
+        rec = IPAddress(subnet_id=subnet_id, ip=ip, status=status, **kwargs)
+        session.add(rec)
+        session.commit()
+        session.refresh(rec)
+        return rec.id
+
+
+def seed_subnet(engine, cidr="192.168.77.0/29"):
+    import uuid
+    from sqlmodel import Session
+    from netscan.models import Subnet
+
+    with Session(engine) as session:
+        subnet = Subnet(id=uuid.uuid4(), cidr=cidr, name="Seeded")
+        session.add(subnet)
+        session.commit()
+        return subnet.id
+
+
+def test_patch_ip_reserve_and_history(auth_db):
+    client, headers, engine = auth_db
+    subnet_id = seed_subnet(engine)
+    seed_ip(engine, subnet_id, "192.168.77.10")
+
+    patch = {"is_reserved": True, "hostname": "printer.corp",
+             "custom_metadata": {"owner": "infra-team"}}
+    res = client.patch("/api/v1/ips/192.168.77.10", json=patch, headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == IPStatus.ASSIGNED_RESERVED.value
+    assert data["custom_metadata"] == {"owner": "infra-team"}
+
+    history = client.get("/api/v1/ips/192.168.77.10/history", headers=headers).json()
+    assert history["current_status"] == IPStatus.ASSIGNED_RESERVED.value
+    assert len(history["timeline"]) == 1
+    entry = history["timeline"][0]
+    assert entry["event_type"] == "RESERVED_TOGGLE"
+    assert entry["old_status"] == IPStatus.AVAILABLE_CANDIDATE.value
+    assert entry["new_status"] == IPStatus.ASSIGNED_RESERVED.value
+
+
+def test_patch_ip_unreserve_releases_to_available(auth_db):
+    client, headers, engine = auth_db
+    subnet_id = seed_subnet(engine)
+    seed_ip(engine, subnet_id, "192.168.77.11", status=IPStatus.ASSIGNED_RESERVED)
+
+    res = client.patch("/api/v1/ips/192.168.77.11", json={"is_reserved": False}, headers=headers)
+    assert res.status_code == 200
+    assert res.json()["status"] == IPStatus.AVAILABLE_CANDIDATE.value
+
+    history = client.get("/api/v1/ips/192.168.77.11/history", headers=headers).json()
+    assert len(history["timeline"]) == 1
+    assert history["timeline"][0]["old_status"] == IPStatus.ASSIGNED_RESERVED.value
+
+
+def test_patch_metadata_only_keeps_status(auth_db):
+    client, headers, engine = auth_db
+    subnet_id = seed_subnet(engine)
+    seed_ip(engine, subnet_id, "192.168.77.12", status=IPStatus.ACTIVE_DETECTED)
+
+    res = client.patch(
+        "/api/v1/ips/192.168.77.12",
+        json={"is_reserved": False, "custom_metadata": {"note": "checked"}},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == IPStatus.ACTIVE_DETECTED.value
+    assert data["custom_metadata"] == {"note": "checked"}
+
+    history = client.get("/api/v1/ips/192.168.77.12/history", headers=headers).json()
+    assert len(history["timeline"]) == 0
+
+
+def test_patch_unknown_ip_returns_404(auth_client):
+    client, headers = auth_client
+    res = client.patch("/api/v1/ips/203.0.113.99", json={"is_reserved": True}, headers=headers)
+    assert res.status_code == 404
+
+
+def test_get_ip_detail_and_404(auth_db):
+    client, headers, engine = auth_db
+    subnet_id = seed_subnet(engine)
+    seed_ip(engine, subnet_id, "192.168.77.13", hostname="nas.local")
+
+    res = client.get("/api/v1/ips/192.168.77.13", headers=headers)
+    assert res.status_code == 200
+    assert res.json()["hostname"] == "nas.local"
+
+    missing = client.get("/api/v1/ips/203.0.113.98", headers=headers)
+    assert missing.status_code == 404
+
+    missing_history = client.get("/api/v1/ips/203.0.113.98/history", headers=headers)
+    assert missing_history.status_code == 404
