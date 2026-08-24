@@ -7,6 +7,20 @@ from sqlmodel import Session, select
 from netscan.db import get_session
 from netscan.models import ApiKey, Role, utc_now
 
+
+def require_role(*allowed: Role):
+    """Dependency factory enforcing that the authenticated key has one of the allowed roles."""
+
+    async def checker(current_user: ApiKey = Depends(get_current_api_key)) -> ApiKey:
+        if current_user.role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient role. Requires one of: {', '.join(r.value for r in allowed)}.",
+            )
+        return current_user
+
+    return checker
+
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 

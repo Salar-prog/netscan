@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from netscan.api.auth import get_current_api_key
+from netscan.api.auth import get_current_api_key, require_role
 from netscan.db import get_session
-from netscan.models import IPAddress, IPStatus, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
+from netscan.models import IPAddress, IPStatus, Role, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
 from netscan.services.scan_service import scan_service
 from netscan.services.scheduler_service import scheduler
@@ -75,7 +75,7 @@ def list_subnets(
 def create_subnet(
     payload: SubnetCreate,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     try:
         norm_cidr = validate_and_normalize_cidr(payload.cidr)
@@ -121,7 +121,7 @@ def update_subnet(
     subnet_id: uuid.UUID,
     payload: SubnetUpdate,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
@@ -143,7 +143,7 @@ def update_subnet(
 def delete_subnet(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
@@ -211,7 +211,7 @@ def get_subnet_ip_matrix(
 def trigger_subnet_scan(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),
-    current_user=Depends(get_current_api_key),
+    current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     """Trigger an immediate asynchronous scan job for this subnet."""
     subnet = session.get(Subnet, subnet_id)
