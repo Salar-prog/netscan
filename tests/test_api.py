@@ -230,3 +230,24 @@ def test_get_ip_detail_and_404(auth_db):
 
     missing_history = client.get("/api/v1/ips/203.0.113.98/history", headers=headers)
     assert missing_history.status_code == 404
+
+
+def test_webhook_ssrf_blocklist(auth_client):
+    client, headers = auth_client
+
+    blocked_urls = [
+        "http://127.0.0.1:8080/hook",
+        "http://10.0.0.1/hook",
+        "http://192.168.1.1/hook",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://172.16.0.1/hook",
+    ]
+
+    for url in blocked_urls:
+        res = client.post("/api/v1/webhooks", json={"name": "test", "url": url}, headers=headers)
+        assert res.status_code == 400, f"Expected 400 for {url}"
+        assert "private/internal" in res.json()["detail"]
+
+    # Public URL should work
+    res = client.post("/api/v1/webhooks", json={"name": "ok", "url": "https://example.com/hook"}, headers=headers)
+    assert res.status_code == 201

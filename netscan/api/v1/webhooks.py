@@ -1,3 +1,4 @@
+import ipaddress
 import secrets
 import uuid
 from typing import List
@@ -5,11 +6,46 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import AnyHttpUrl, BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
+from netscan.config import settings
 from netscan.db import get_session
 from netscan.models import Role, Webhook
 from netscan.services.webhook_service import WebhookDispatcher
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+
+
+def _is_url_blocked(url: str) -> bool:
+    """Check if URL points to a private/internal IP range."""
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Check if hostname is an IP address
+        try:
+            ip = ipaddress.ip_address(hostname)
+        except ValueError:
+            # Hostname is a domain, resolve it first
+            import socket
+
+            try:
+                resolved = socket.getaddrinfo(hostname, None)
+                ip = ipaddress.ip_address(resolved[0][4][0])
+            except (socket.gaierror, IndexError):
+                return False
+
+        blocked = [
+            ipaddress.ip_network(cidr.strip())
+            for cidr in settings.WEBHOOK_BLOCKED_RANGES.split(",")
+            if cidr.strip()
+        ]
+
+        return any(ip in network for network in blocked)
+    except Exception:
+        return False
 
 
 class WebhookCreate(BaseModel):
@@ -53,6 +89,12 @@ def create_webhook(
     session: Session = Depends(get_session),
     current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
+    if _is_url_blocked(str(payload.url)):
+        raise HTTPException(
+            status_code=400,
+            detail="Webhook URL points to a private/internal IP range. Use a public URL.",
+        )
+
     raw_secret = secrets.token_urlsafe(32)
     wh = Webhook(
         name=payload.name,
