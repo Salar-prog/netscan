@@ -222,7 +222,7 @@ domain-specific modules and add export functionality.
 
 ## Phase 10: LDAP/AD Authentication & Dashboard Proxy Routes (PLANNED)
 
-**Status:** IN PROGRESS (Stage 10.1 done)
+**Status:** COMPLETE
 
 Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)

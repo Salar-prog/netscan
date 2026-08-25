@@ -153,3 +153,13 @@ Gotchas, false starts, and things that didn't work and why.
 **Fix:** Seed the subnet first via `client.post("/api/v1/subnets", ...)`, then create IPs. Or use the `subnet_factory` fixture.
 
 **Lesson:** E2E tests that chain operations need to set up prerequisites. The subnet must exist before IPs can be created under it.
+
+---
+
+## Optional dependency: lazy import for testability
+
+**Problem:** `netscan/auth/ldap.py` did `import ldap` at module level. When `python-ldap` isn't installed (test environment, CI without libldap2-dev), the entire module fails to import — breaking `map_groups_to_role()` which doesn't need ldap at all.
+
+**Fix:** Moved `import ldap` inside `ldap_authenticate()` as a lazy import. Module loads fine without `python-ldap`; only the actual LDAP function fails gracefully with a logged error.
+
+**Lesson:** For optional system-level dependencies (especially C extensions like python-ldap), keep the import lazy. Pure functions in the same module remain testable without the dependency installed.

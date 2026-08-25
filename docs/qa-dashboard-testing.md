@@ -23,6 +23,15 @@ netscan serve --reload
 | 5 | Protected route without cookie | GET `/` without cookie | Redirect to `/login` |
 | 6 | Protected route with expired cookie | Set expired cookie, GET `/` | Redirect to `/login` |
 
+### LDAP Authentication (4 tests, requires LDAP_ENABLED=true)
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| 7 | LDAP login form | GET `/login` | Username/password fields shown (not API key) |
+| 8 | Valid LDAP login | Enter username + password | Redirect to `/`, `ldap:` cookie set |
+| 9 | Invalid LDAP credentials | Enter wrong password | Error message, no cookie |
+| 10 | LDAP cookie grants access | Set valid `ldap:` cookie, GET `/` | Dashboard loads |
+
 ### Subnets (5 tests)
 
 | # | Test | Steps | Expected |

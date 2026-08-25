@@ -116,6 +116,7 @@ netscan serve                          # Dashboard + API
 netscan serve --no-dashboard           # API only
 netscan serve --reload                 # Dev mode
 netscan serve --host 0.0.0.0 --port 9000
+netscan login                          # LDAP auth → create API key
 ```
 
 ## API
