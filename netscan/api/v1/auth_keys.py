@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from netscan.api.auth import generate_api_key, get_current_api_key, require_role
 from netscan.db import get_session
@@ -83,7 +84,14 @@ def bootstrap_first_key(
         is_active=True,
     )
     session.add(api_key_rec)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Bootstrap race detected: another key was created simultaneously. Try again.",
+        )
     session.refresh(api_key_rec)
     return {
         "id": api_key_rec.id,
