@@ -4,6 +4,8 @@ All endpoints live under `/api/v1` and require an `X-API-Key` header (except boo
 
 Interactive docs: `/docs` (Swagger) or `/redoc` (ReDoc).
 
+> The web dashboard does **not** call these endpoints directly — its HTMX forms go through separate session-cookie-authenticated proxy routes under `/web/*`. Those routes are internal to the dashboard and not part of the public API.
+
 ---
 
 ## Authentication

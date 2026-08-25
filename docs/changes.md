@@ -228,6 +228,13 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.9 — Documentation (DONE)
+- `docs/progress.md`: Phase 10 marked COMPLETE, all stages Done
+- `docs/qa-dashboard-testing.md`: added ldap_client fixture, new test files, fixed stale failure modes (HTMX writes now work via /web/*)
+- `docs/learnings.md`: lazy-import learning for python-ldap
+- `docs/api.md`: note that dashboard writes use /web/* proxy routes, not /api/v1/*
+- README/AGENTS already updated in earlier commits
+
 ### Stage 10.8 — Tests (DONE)
 - `netscan/auth/ldap.py`: Made `import ldap` lazy so module loads without python-ldap installed
 - `tests/test_ldap.py`: 8 tests — map_groups_to_role (6), ldap_authenticate (2: disabled, not installed)

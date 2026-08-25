@@ -156,6 +156,16 @@ Gotchas, false starts, and things that didn't work and why.
 
 ---
 
+## python-ldap can't be installed in every dev/CI environment
+
+**Problem:** `netscan/auth/ldap.py` had `import ldap` at module level. `python-ldap` needs system packages (`libldap2-dev`, `libsasl2-dev`) to build, which aren't available in all environments (no sudo, restricted CI). Any test importing the module — even just `map_groups_to_role()`, which doesn't touch LDAP — crashed with `ModuleNotFoundError`.
+
+**Fix:** Moved `import ldap` inside `ldap_authenticate()` with a try/except that logs and returns `None`. The module now imports cleanly everywhere; only actual LDAP authentication requires the library.
+
+**Lesson:** Keep C-extension imports lazy in optional-integration modules. The pure-Python parts (mapping, config) should work without the system dependency, and the integration point should fail gracefully with a clear log message.
+
+---
+
 ## Optional dependency: lazy import for testability
 
 **Problem:** `netscan/auth/ldap.py` did `import ldap` at module level. When `python-ldap` isn't installed (test environment, CI without libldap2-dev), the entire module fails to import — breaking `map_groups_to_role()` which doesn't need ldap at all.

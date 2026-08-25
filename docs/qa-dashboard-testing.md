@@ -92,9 +92,10 @@ netscan serve --reload
 
 ```python
 # conftest.py provides:
-client          # Unauthenticated TestClient
+ client          # Unauthenticated TestClient
 auth_client     # TestClient + bootstrapped API key
-dashboard_client # TestClient with valid session cookie
+dashboard_client # TestClient with valid session cookie (ak:)
+ldap_client     # TestClient with valid LDAP session cookie (ldap:)
 make_key_headers # Factory for API key headers
 ```
 
@@ -107,6 +108,12 @@ pytest tests/test_web.py -v
 # Auth tests only
 pytest tests/test_web.py -v -k "login or logout or cookie"
 
+# LDAP auth module tests
+pytest tests/test_ldap.py -v
+
+# Proxy route + dual cookie tests
+pytest tests/test_proxy_routes.py -v
+
 # E2E audit tests
 pytest tests/test_e2e_audit_fixes.py -v
 
@@ -116,7 +123,8 @@ pytest -v
 
 ## Common Failure Modes
 
-1. **401 on HTMX writes**: Forms target `/api/v1/*` which needs `X-API-Key` header. Must use `/web/*` proxy routes.
+1. **401 on HTMX writes**: A form is targeting `/api/v1/*` (needs `X-API-Key` header). Dashboard forms must target `/web/*` proxy routes.
 2. **Cookie not sent**: Browser blocks cookie if `SameSite` is wrong. Check `session.py` settings.
 3. **HX-Redirect not working**: HTMX needs `HX-Redirect` header, not `Location` header for redirects.
-4. **Session expired**: Cookie TTL is 24h. Re-login required.
+4. **Session expired**: Cookie TTL is 7 days (`COOKIE_MAX_AGE` in `session.py`). Re-login required.
+5. **LDAP login fails with "LDAP unavailable"**: `python-ldap` not installed, server down, or bad bind credentials. Check logs; scripts using API keys are unaffected by design.

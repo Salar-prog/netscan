@@ -158,9 +158,9 @@ Post-merge fix: switched scan duration measurement from `datetime.now(timezone.u
 
 ---
 
-## Phase 10: LDAP/AD Authentication & Dashboard Proxy Routes (PLANNED)
+## Phase 10: LDAP/AD Authentication & Dashboard Proxy Routes (COMPLETE)
 
-**Status:** NOT STARTED
+**Status:** DONE — all stages complete (commit e8e96cb..HEAD on feat/phase-10-ldap-auth)
 
 Phase 10 addresses two critical production blockers:
 1. **Dashboard HTMX forms are broken** — all write operations (create subnet, trigger scan, manage keys/webhooks, reserve IPs) POST to `/api/v1/*` endpoints that require `X-API-Key` header, but the dashboard only has session cookies. Every action returns 401.
@@ -185,7 +185,7 @@ Add `python-ldap>=3.4.0` to `pyproject.toml`.
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.1 Config & dependencies | Planned | LDAP settings in config.py, python-ldap in pyproject.toml |
+| 10.1 Config & dependencies | Done | config.py + pyproject.toml — commit e8e96cb |
 
 ### Stage 10.2 — LDAP Auth Module
 **Files:** `netscan/auth/__init__.py` (new), `netscan/auth/ldap.py` (new)
@@ -196,7 +196,7 @@ Create `netscan/auth/` package with two functions:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.2 LDAP auth module | Planned | netscan/auth/ldap.py with bind + group→role mapping |
+| 10.2 LDAP auth module | Done | netscan/auth/ldap.py with bind + group→role mapping |
 
 ### Stage 10.3 — Session Cookie Dual Format
 **Files:** `netscan/web/session.py`
@@ -209,7 +209,7 @@ Updated `validate_session_cookie()` returns `{"type": "ak"|"ldap", ...}`.
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.3 Session cookie dual format | Planned | ak: and ldap: cookie formats, backward compatible |
+| 10.3 Session cookie dual format | Done | ak: and ldap: cookie formats, backward compatible |
 
 ### Stage 10.4 — Dashboard Login with LDAP
 **Files:** `netscan/web/views.py`, `netscan/web/templates/login.html`
@@ -221,7 +221,7 @@ Update login flow:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.4 Dashboard login with LDAP | Planned | Login page supports both LDAP and API key auth |
+| 10.4 Dashboard login with LDAP | Done | Login page supports both LDAP and API key auth |
 
 ### Stage 10.5 — Dashboard Proxy Routes
 **Files:** `netscan/web/views.py`
@@ -243,7 +243,7 @@ Each proxy route checks session cookie + role permission before calling the serv
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.5 Dashboard proxy routes | Planned | 8 /web/* routes fixing all broken HTMX forms |
+| 10.5 Dashboard proxy routes | Done | 8 /web/* routes fixing all broken HTMX forms |
 
 ### Stage 10.6 — Update Templates
 **Files:** `netscan/web/templates/*.html`
@@ -256,7 +256,7 @@ Update all HTMX forms to target `/web/*` routes:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.6 Update templates | Planned | All HTMX targets changed from /api/v1/* to /web/* |
+| 10.6 Update templates | Done | All HTMX targets changed from /api/v1/* to /web/* |
 
 ### Stage 10.7 — CLI LDAP Login
 **Files:** `netscan/cli.py`
@@ -268,7 +268,7 @@ Add `netscan login` command:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.7 CLI LDAP login | Planned | `netscan login` authenticates via LDAP, returns API key |
+| 10.7 CLI LDAP login | Done | `netscan login` authenticates via LDAP, returns API key |
 
 ### Stage 10.8 — Tests
 **Files:** `tests/test_ldap.py` (new), `tests/test_web.py` (update), `tests/conftest.py` (update)
@@ -277,7 +277,7 @@ Add `netscan login` command:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.8 Tests | Planned | Mock LDAP tests, proxy route tests, dual cookie tests |
+| 10.8 Tests | Done | Mock LDAP tests, proxy route tests, dual cookie tests |
 
 ### Stage 10.9 — Documentation
 **Files:** `README.md`, `AGENTS.md`, `docs/*.md`, `docs/qa-dashboard-testing.md`
@@ -286,7 +286,7 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 
 | Item | Status | Notes |
 |------|--------|-------|
-| 10.9 Documentation | Planned | README, AGENTS, progress, changes, decisions, learnings, QA guide |
+| 10.9 Documentation | Done | README, AGENTS, progress, changes, decisions, learnings, QA guide |
 
 ---
 
