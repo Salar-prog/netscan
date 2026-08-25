@@ -222,13 +222,17 @@ domain-specific modules and add export functionality.
 
 ## Phase 10: LDAP/AD Authentication & Dashboard Proxy Routes (PLANNED)
 
-**Status:** NOT STARTED
+**Status:** IN PROGRESS (Stage 10.1 done)
 
 Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
-### Planned Changes (10 Stages)
+### Stage 10.1 — Config & Dependencies (DONE)
+- `netscan/config.py`: 12 LDAP settings added (LDAP_ENABLED, LDAP_SERVER_URI, LDAP_BIND_DN, LDAP_BIND_PASSWORD, LDAP_USER_SEARCH_BASE, LDAP_USER_SEARCH_FILTER, LDAP_GROUP_SEARCH_BASE, LDAP_GROUP_SEARCH_FILTER, LDAP_START_TLS, LDAP_CA_CERT_FILE)
+- `pyproject.toml`: python-ldap>=3.4.0 added
+
+### Planned Changes (Remaining Stages)
 
 | Stage | Files | Description |
 |-------|-------|-------------|
