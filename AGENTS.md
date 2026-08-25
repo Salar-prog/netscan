@@ -47,6 +47,8 @@ Notes:
 netscan/
   api/v1/          # REST endpoints: subnets.py, ips.py, scans.py, webhooks.py, auth_keys.py
   api/auth.py      # API key authentication dependency (X-API-Key header)
+  auth/            # Enterprise auth (Phase 10):
+    ldap.py        #   LDAP bind + group→role mapping
   scanner/         # Discovery engine:
     runner.py      #   async nmap wrapper, capability auto-detection, probe parsing
     classifier.py  #   state & quarantine heuristic classifier
@@ -55,15 +57,19 @@ netscan/
     scan_service.py       # scan job orchestration
     scheduler_service.py  # in-process APScheduler integration
     webhook_service.py    # outbound HMAC-SHA256 signed webhook dispatcher
-  web/views.py     # HTMX dashboard routes (Jinja2)
-  config.py        # Settings via pydantic-settings
+  web/
+    views.py       # HTMX dashboard routes (Jinja2) + /web/* proxy routes
+    session.py     # HMAC-signed session cookie (ak: and ldap: formats)
+    templates/     # Jinja2 templates (base, index, matrix, drawer, provision, scans, settings, login)
+  config.py        # Settings via pydantic-settings (incl. LDAP config)
   models.py        # SQLModel schemas (Subnet, IPAddress, ScanJob, IPHistory, Webhook, ApiKey)
   db.py            # Engine + get_session dependency
   limiter.py       # Shared slowapi RateLimiter instance
   main.py          # FastAPI app factory, lifespan, middleware, rate limiting
-  cli.py           # Click CLI: netscan serve --dashboard/--no-dashboard
+  cli.py           # Click CLI: netscan serve --dashboard/--no-dashboard, netscan login
 tests/             # pytest suite (conftest.py has shared fixtures)
 alembic/           # DB migrations
+docs/              # Internal docs (progress, changes, decisions, learnings, plans)
 ```
 
 ## Testing
@@ -90,6 +96,9 @@ alembic/           # DB migrations
 2. **API-key auth**: every `/api/v1` endpoint requires authentication via `X-API-Key`. Only `/api/v1/auth/keys/bootstrap` is open, and only until the first key exists.
 3. **Webhook secrets** are stored plaintext (needed to sign outbound payloads), returned once at creation, and must never be exposed via list/get endpoints.
 4. **Rate limiting** via slowapi applies globally; `/health` is exempt.
+5. **LDAP group mapping** is hardcoded in `netscan/auth/ldap.py`: `netscan-admins`→ADMIN, `netscan-operators`→OPERATOR, default→READ_ONLY. Do not make this configurable without explicit discussion.
+6. **LDAP failure = reject login.** Never add a fallback that bypasses LDAP when the server is down. Scripts use API keys and are unaffected.
+7. **Dashboard writes go through `/web/*` proxy routes**, not direct `/api/v1/*` calls. Session cookies don't carry API key headers. Proxy routes check cookie auth + role, then call service functions.
 
 ## Git Workflow
 

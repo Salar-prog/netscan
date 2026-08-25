@@ -165,3 +165,86 @@ Additional fixes:
 
 No changes yet. This phase will break the monolithic web dashboard into
 domain-specific modules and add export functionality.
+
+---
+
+## Phase 9: Production-Readiness Audit
+
+### Stage 9.1 -- Max CIDR prefix /24
+- `netscan/scanner/cidr.py`: Added `MAX_PREFIX_LENGTH` check, raises `ValueError` for prefixes larger than /24
+- `netscan/config.py`: Added `MAX_SCAN_PREFIX_LENGTH: int = 24`
+
+### Stage 9.2 -- Scan concurrency guard
+- `netscan/api/v1/subnets.py`: Added check for duplicate RUNNING/QUEUED jobs before creating new scan job; returns 409 Conflict
+
+### Stage 9.3 -- SQLite WAL + busy timeout
+- `netscan/db.py`: Enabled WAL journal mode and 5s busy timeout on startup via `PRAGMA journal_mode=WAL` and `PRAGMA busy_timeout=5000`
+
+### Stage 9.4 -- Webhook exponential backoff
+- `netscan/services/webhook_service.py`: Implemented 1s, 2s, 4s exponential backoff between retries instead of fixed delays
+
+### Stage 9.5 -- Trusted proxy support
+- `netscan/config.py`: Added `TRUSTED_PROXIES` env var (comma-separated CIDRs)
+- `netscan/limiter.py`: Updated `get_remote_address` to check `X-Forwarded-For` against trusted proxies
+
+### Stage 9.6 -- Multi-stage Docker build
+- `Dockerfile`: Split into builder + runtime stages; pinned `python:3.12.8-slim`; added `--no-install-recommends`
+
+### Stage 9.7 -- Alembic on startup
+- `netscan/main.py`: Added `alembic upgrade head` in lifespan to auto-run migrations
+
+### Stage 9.8 -- SSRF blocklist
+- `netscan/config.py`: Added `SSRF_BLOCKED_RANGES` setting with RFC1918, link-local, and cloud metadata ranges
+- `netscan/api/v1/webhooks.py`: Added SSRF validation on webhook URL creation
+
+### Stage 9.9 -- Bootstrap race-safe
+- `netscan/api/v1/auth_keys.py`: Added `IntegrityError` catch around bootstrap to handle concurrent race condition
+
+### Stage 9.10 -- Pin Docker base image
+- `Dockerfile`: Pinned to `python:3.12.8-slim` (sha256 digest removed for flexibility)
+
+### Stage 9.11 -- Dependency lockfile
+- Created `requirements-lock.txt` with pinned versions
+
+### Stage 9.12 -- scan_cidr integration tests
+- `tests/test_scanner.py`: Added 4 tests for `scan_cidr()` covering success, partial failure, and error scenarios
+
+### Stage 9.13 -- E2E audit tests
+- Created `tests/test_e2e_audit_fixes.py`: 9 end-to-end tests covering all 14 audit items together
+
+### Stage 9.14 -- Docker capabilities documented
+- `README.md`: Added `--cap-add=NET_RAW --cap-add=NET_ADMIN` documentation and docker-compose example
+
+### Commits
+- `8995d2e` through `6f7c047`: Phases 9 + 9.5, all pushed to origin/main
+
+---
+
+## Phase 10: LDAP/AD Authentication & Dashboard Proxy Routes (PLANNED)
+
+**Status:** NOT STARTED
+
+Phase 10 addresses two critical production blockers:
+1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
+2. No enterprise authentication (only API key login)
+
+### Planned Changes (10 Stages)
+
+| Stage | Files | Description |
+|-------|-------|-------------|
+| 10.1 | `netscan/config.py`, `pyproject.toml` | LDAP config settings + python-ldap dependency |
+| 10.2 | `netscan/auth/__init__.py`, `netscan/auth/ldap.py` | LDAP bind + group→role mapping (hardcoded: netscan-admins→ADMIN, netscan-operators→OPERATOR, else READ_ONLY) |
+| 10.3 | `netscan/web/session.py` | Dual cookie format: `ak:` (API key) and `ldap:` (LDAP) |
+| 10.4 | `netscan/web/views.py`, `netscan/web/templates/login.html` | Login page supports both LDAP and API key auth |
+| 10.5 | `netscan/web/views.py` | 8 proxy routes at `/web/*` (POST subnets, POST scan, POST/DELETE keys, POST/DELETE webhooks, POST test, PATCH IP) with session cookie auth |
+| 10.6 | `netscan/web/templates/*.html` | HTMX targets changed from `/api/v1/*` to `/web/*` |
+| 10.7 | `netscan/cli.py` | `netscan login` CLI command (LDAP auth → returns API key) |
+| 10.8 | `tests/test_ldap.py`, `tests/test_web.py`, `tests/conftest.py` | 11+ new tests (mock LDAP, proxy routes, dual cookies) |
+| 10.9 | `README.md`, `AGENTS.md`, `docs/*.md`, `docs/qa-dashboard-testing.md` | Full doc update |
+
+### Decisions Made (see docs/decisions-log.md for full rationale)
+- LDAP + API keys coexist (not replace)
+- Session cookie keeps API key (scripts use API keys, unaffected)
+- Hardcoded group mapping (not configurable)
+- LDAP down = reject login (scripts unaffected)
+- Dashboard writes use server-side proxy routes (not client-side API key injection)

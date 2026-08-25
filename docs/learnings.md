@@ -121,3 +121,35 @@ Gotchas, false starts, and things that didn't work and why.
 **Fix:** Ran `ruff format netscan/` to let the formatter handle all line wrapping. Manual line breaks were fighting the formatter's rules. Let the tool do it.
 
 **Lesson:** Don't manually fix line-length violations if you're using ruff format. Fix the logical structure first (unused imports, boolean comparisons), then let `ruff format` handle the whitespace. Run `ruff format --check` last.
+
+---
+
+## HTMX forms broken after adding session auth
+
+**Problem:** After implementing dashboard session cookie auth (`/login`, `/logout`, `netscan_session` cookie), all dashboard write operations returned 401. The HTMX forms POST to `/api/v1/*` endpoints which require `X-API-Key` header — but the browser only sends session cookies, not API key headers.
+
+**Root cause:** Session auth and API key auth are separate systems. The dashboard templates were written to call API endpoints directly, which works when the user has an API key injected into the page (the original plan). Once session cookies replaced that, the API endpoints still expected headers.
+
+**Fix (planned Phase 10.5):** Server-side proxy routes at `/web/*` that check session cookie auth, then call the same service functions. HTMX forms target `/web/*` instead of `/api/v1/*`.
+
+**Lesson:** When adding a new auth mechanism, trace every write path end-to-end. The dashboard had 8 broken write operations that weren't caught until manual testing because the test fixtures only tested read routes.
+
+---
+
+## Bootstrap endpoint race condition
+
+**Problem:** Two concurrent requests to `/api/v1/auth/keys/bootstrap` both checked "no keys exist" and both tried to create the first key. One succeeded, the other raised `IntegrityError` (unique constraint on key_hash).
+
+**Fix:** Wrap bootstrap in `try/except IntegrityError` — if it fails due to race, return 403 (key already exists).
+
+**Lesson:** Bootstrap endpoints with "create if empty" logic are inherently racy. Always catch the constraint violation.
+
+---
+
+## E2E test IP seeding issue
+
+**Problem:** `test_full_lifecycle` in `test_e2e_audit_fixes.py` called `create_ip_address()` to seed IPs, but the function returned 422 (validation error). The subnet didn't exist in the test DB.
+
+**Fix:** Seed the subnet first via `client.post("/api/v1/subnets", ...)`, then create IPs. Or use the `subnet_factory` fixture.
+
+**Lesson:** E2E tests that chain operations need to set up prerequisites. The subnet must exist before IPs can be created under it.

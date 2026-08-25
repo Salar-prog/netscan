@@ -104,6 +104,16 @@ All settings are configured via environment variables or a `.env` file in the pr
 | `WEBHOOK_MAX_RETRIES` | `3` | Webhook delivery retry count |
 | `LOG_FORMAT` | `text` | Log format: `text` or `json` |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `LDAP_ENABLED` | `false` | Enable LDAP/AD authentication for dashboard |
+| `LDAP_SERVER_URI` | *(empty)* | LDAP server URI (e.g. `ldap://dc01.corp.local`) |
+| `LDAP_BIND_DN` | *(empty)* | Service account DN for LDAP bind |
+| `LDAP_BIND_PASSWORD` | *(empty)* | Service account password |
+| `LDAP_USER_SEARCH_BASE` | *(empty)* | OU containing users (e.g. `OU=Users,DC=corp,DC=local`) |
+| `LDAP_USER_SEARCH_FILTER` | `(sAMAccountName={username})` | LDAP filter for user lookup |
+| `LDAP_GROUP_SEARCH_BASE` | *(empty)* | OU containing groups |
+| `LDAP_GROUP_SEARCH_FILTER` | `(member={user_dn})` | LDAP filter for group membership |
+| `LDAP_START_TLS` | `false` | Use StartTLS for LDAP connection |
+| `LDAP_CA_CERT_FILE` | *(empty)* | Path to CA cert for LDAP TLS verification |
 
 ## API Key Setup
 

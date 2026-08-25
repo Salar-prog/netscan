@@ -100,3 +100,64 @@ A: `conftest.py` with `client` (unauthenticated) and `auth_client` (bootstraps A
 
 **Q: Should the Docker container run as root?**
 A: No. Create `netscan` user, `chown -R netscan:netscan /app` before switching. Container is non-root.
+
+---
+
+## 2026-08-25: CSRF protection re-evaluation
+
+**Q: After adding session cookies, should we add CSRF tokens?**
+A: No. HTMX writes will go through server-side `/web/*` proxy routes (not client-side API calls). Same-origin POST from the browser — CSRF not applicable for an internal tool with no cross-site form targets.
+
+---
+
+## 2026-08-25: Dashboard authentication approach
+
+**Q: How should dashboard users authenticate?**
+A: Dual mode. LDAP/AD when `LDAP_ENABLED=true` (username/password → session cookie). API key otherwise (existing behavior). Session cookie format: `ak:{key_hash}:{timestamp}:{sig}` for API keys, `ldap:{username}:{role}:{timestamp}:{sig}` for LDAP.
+
+---
+
+## 2026-08-25: LDAP group mapping
+
+**Q: How to map LDAP groups to NetScan roles?**
+A: Hardcoded mapping in `netscan/auth/ldap.py`:
+- `netscan-admins` → ADMIN
+- `netscan-operators` → OPERATOR
+- All others → READ_ONLY
+
+Not configurable via env vars. YAGNI — can add `LDAP_GROUP_MAP` later if needed.
+
+---
+
+## 2026-08-25: LDAP failure behavior
+
+**Q: What happens when LDAP server is down?**
+A: Reject the login. Scripts use API keys (unaffected). Operators use LDAP → if LDAP is down, they wait. No fallback to "allow anyone" — that defeats the purpose.
+
+---
+
+## 2026-08-25: Dashboard write operations
+
+**Q: Dashboard HTMX forms POST to `/api/v1/*` which require `X-API-Key` header. How to fix?**
+A: Server-side proxy routes under `/web/*`. The dashboard already has session cookies. Proxy routes check cookie auth + role permission, then call the same service functions the API routes use. No duplication of business logic — just an auth adapter layer.
+
+---
+
+## 2026-08-25: Session cookie role handling
+
+**Q: How does the session cookie carry the role?**
+A: The cookie embeds the role at sign time. `ldap:{username}:{role}:{timestamp}:{sig}`. Role comes from LDAP group mapping. For API key sessions, role is looked up from DB at validation time (existing behavior). Two different flows, one validation function with a `type` field in the return dict.
+
+---
+
+## 2026-08-25: CLI LDAP login
+
+**Q: Should `netscan login` support LDAP?**
+A: Yes. `netscan login` prompts for username/password, binds to LDAP, on success creates an API key with the mapped role, prints the raw key. User saves it. The CLI never stores credentials — it just bootstraps an API key.
+
+---
+
+## 2026-08-25: python-ldap as dependency
+
+**Q: python-ldap requires system-level libldap2-dev. Is that OK?**
+A: Yes. The Dockerfile already installs build tools for compilation. For local dev, `sudo apt install libldap2-dev libsasl2-dev` is documented in README. python-ldap is the standard LDAP library for Python — no viable pure-Python alternative for AD integration.
