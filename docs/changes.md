@@ -228,6 +228,13 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.8 — Tests (DONE)
+- `netscan/auth/ldap.py`: Made `import ldap` lazy so module loads without python-ldap installed
+- `tests/test_ldap.py`: 8 tests — map_groups_to_role (6), ldap_authenticate (2: disabled, not installed)
+- `tests/test_proxy_routes.py`: 14 tests — proxy auth check (1), subnet proxy (3), key proxy (2), webhook proxy (2), dual cookie format (6)
+- `tests/conftest.py`: Added `ldap_client` fixture with LDAP session cookie
+- Total: 115 tests passing (was 93)
+
 ### Stage 10.7 — CLI LDAP Login (DONE)
 - `netscan/cli.py`: Added `netscan login` command — prompts for username/password, authenticates via LDAP, creates API key with mapped role, prints raw key for user to save
 

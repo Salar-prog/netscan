@@ -1,14 +1,11 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import ldap
-
 from netscan.config import settings
 from netscan.models import Role
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded group → role mapping
 _GROUP_ROLE_MAP: Dict[str, Role] = {
     "netscan-admins": Role.ADMIN,
     "netscan-operators": Role.OPERATOR,
@@ -29,9 +26,14 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
     if not settings.LDAP_ENABLED:
         return None
 
+    try:
+        import ldap
+    except ImportError:
+        logger.error("python-ldap is not installed. Install it with: pip install python-ldap")
+        return None
+
     conn = None
     try:
-        # Connect with service account
         conn = ldap.initialize(settings.LDAP_SERVER_URI)
         conn.set_option(ldap.OPT_REFERRALS, 0)
 
@@ -43,7 +45,6 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
 
         conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
 
-        # Find user DN
         search_filter = settings.LDAP_USER_SEARCH_FILTER.format(username=username)
         results = conn.search_s(settings.LDAP_USER_SEARCH_BASE, ldap.SCOPE_SUBTREE, search_filter, ["dn"])
         if not results:
@@ -52,7 +53,6 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
 
         user_dn = results[0][0]
 
-        # Verify user credentials
         try:
             user_conn = ldap.initialize(settings.LDAP_SERVER_URI)
             user_conn.set_option(ldap.OPT_REFERRALS, 0)
@@ -64,7 +64,6 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
             logger.warning("LDAP auth failed for %s: invalid credentials", username)
             return None
 
-        # Fetch groups
         groups: List[str] = []
         if settings.LDAP_GROUP_SEARCH_BASE:
             group_filter = settings.LDAP_GROUP_SEARCH_FILTER.format(user_dn=user_dn)
@@ -87,5 +86,5 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
         if conn:
             try:
                 conn.unbind_s()
-            except ldap.LDAPError:
+            except Exception:
                 pass

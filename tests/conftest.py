@@ -116,3 +116,27 @@ def dashboard_client_fixture():
         assert login_res.status_code == 303
         yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="ldap_client")
+def ldap_client_fixture():
+    """Client with a valid LDAP session cookie for dashboard tests."""
+    from netscan.web.session import create_ldap_session_cookie, COOKIE_NAME
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+
+    def get_session_override():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = get_session_override
+    with TestClient(app) as client:
+        cookie = create_ldap_session_cookie("testuser", "admin")
+        client.cookies.set(COOKIE_NAME, cookie)
+        yield client
+    app.dependency_overrides.clear()
