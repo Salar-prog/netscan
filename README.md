@@ -2,59 +2,81 @@
 
 [![CI](https://github.com/Salar-prog/netscan/actions/workflows/ci.yml/badge.svg)](https://github.com/Salar-prog/netscan/actions/workflows/ci.yml)
 
-Production-grade IP discovery and availability tracking platform.
+IP discovery that doesn't lie to you.
 
-NetScan reconciles active network probes (L2 ARP, L3 ICMP, L4 TCP SYN) with managed subnet pools to provide safe, real-time visibility into which IP addresses are active, quarantined, reserved, or available for allocation.
+NetScan scans your subnets, tracks what's alive, and won't free an IP just because a firewall dropped a ping. Unresponsive hosts enter quarantine — they stay marked uncertain until they've missed enough consecutive scans *and* waited out a configurable cooldown. No false frees.
 
-## Features
-
-- **Safe Availability & Quarantine** -- Avoids naive "ping failure = free" assumptions. Unresponsive hosts enter `UNCERTAIN_FIREWALLED` and are only released after meeting both miss thresholds and quarantine duration.
-- **Multi-Probe Engine** -- Auto-detects Linux capabilities for ARP/TCP SYN stealth sweeps, with fallback to unprivileged TCP Connect.
-- **API-First** -- Full REST API with OpenAPI docs. Programmatic subnet management, IP provisioning queries, and per-IP audit history.
-- **Outbound Webhooks** -- HMAC-SHA256 signed event notifications with full IP object snapshots.
-- **In-Process Scheduler** -- Background scanning with zero external dependencies (no Redis/Celery).
-- **HTMX Dashboard** -- Server-rendered CIDR matrix grid, IP inspector drawer, scan job monitor. No Node.js build step.
-
-## Quickstart
-
-### Requirements
-
-- Python 3.10+
-- `nmap` installed on the host (`sudo apt install nmap` on Debian/Ubuntu)
-
-### Install & Run
+## Quick Start
 
 ```bash
 pip install -e .
 netscan serve
 ```
 
-Or with uvicorn directly:
+Dashboard at `http://localhost:8000/`. Swagger at `/docs`.
 
-```bash
-uvicorn netscan.main:app --host 0.0.0.0 --port 8000 --reload
-```
+## The Dashboard
 
-- Dashboard: http://localhost:8000/
-- Swagger: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+The dashboard is the main interface. Everything you need is one click away.
 
-### CLI Usage
+**CIDR Matrix** — Every subnet rendered as a color-coded grid. Green = active, yellow = uncertain (firewalled), red = unreachable, gray = available. Click any IP to inspect.
 
-```
-netscan serve --host 0.0.0.0 --port 8000 --dashboard
-netscan serve --no-dashboard    # API-only, no web UI
-netscan serve --reload          # Development mode with auto-reload
-```
+**IP Inspector** — Side drawer slides out with full IP detail: current status, last seen, scan history, reservation note. Reserve or release IPs inline.
 
-### Docker
+**Scan Job Monitor** — Live view of running scans with status updates (QUEUED → RUNNING → COMPLETED). See which subnets are being scanned and when they finished.
+
+**Settings** — Generate API keys, manage webhooks, configure scan intervals. One page, no digging through config files.
+
+**Provision Helper** — Find the next N available IPs in a subnet. Feed the output straight into Terraform or your provisioning tool.
+
+## Features
+
+- **Safe quarantine model** — "ping failed" never means "free to use"
+- **Multi-probe engine** — ARP, ICMP, TCP SYN with auto-detection and fallback
+- **HTMX dashboard** — no Node.js, no build step, server-rendered
+- **Outbound webhooks** — HMAC-SHA256 signed, with retry and exponential backoff
+- **In-process scheduler** — background scans, zero external deps
+- **LDAP/AD auth** — corporate credentials for dashboard, API keys for scripts
+- **Rate limiting** — global 120 req/min via slowapi
+- **Structured logging** — JSON or text, configurable level
+
+## Configuration
+
+Environment variables or `.env` file:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEBUG` | `false` | Debug logging, relaxed security |
+| `SECRET_KEY` | *(empty)* | **Required in production.** Session signing. |
+| `DATABASE_URL` | `sqlite:///./netscan.db` | Database URL |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
+| `DEFAULT_SCAN_INTERVAL_MINUTES` | `60` | Scan interval per subnet |
+| `DEFAULT_MISS_THRESHOLD` | `3` | Consecutive misses before uncertain |
+| `DEFAULT_QUARANTINE_HOURS` | `48` | Cooldown before uncertain → available |
+| `NMAP_TIMEOUT_SECONDS` | `300` | Per-scan timeout |
+| `WEBHOOK_TIMEOUT_SECONDS` | `10` | Outbound webhook timeout |
+| `WEBHOOK_MAX_RETRIES` | `3` | Webhook retry count |
+| `LOG_FORMAT` | `text` | `text` or `json` |
+| `LOG_LEVEL` | `INFO` | DEBUG, INFO, WARNING, ERROR |
+| `LDAP_ENABLED` | `false` | Enable LDAP/AD dashboard auth |
+| `LDAP_SERVER_URI` | *(empty)* | e.g. `ldap://dc01.corp.local` |
+| `LDAP_BIND_DN` | *(empty)* | Service account DN |
+| `LDAP_BIND_PASSWORD` | *(empty)* | Service account password |
+| `LDAP_USER_SEARCH_BASE` | *(empty)* | OU containing users |
+| `LDAP_USER_SEARCH_FILTER` | `(sAMAccountName={username})` | User lookup filter |
+| `LDAP_GROUP_SEARCH_BASE` | *(empty)* | OU containing groups |
+| `LDAP_GROUP_SEARCH_FILTER` | `(member={user_dn})` | Group membership filter |
+| `LDAP_START_TLS` | `false` | Use StartTLS |
+| `LDAP_CA_CERT_FILE` | *(empty)* | CA cert for LDAP TLS |
+
+## Docker
 
 ```bash
 docker build -t netscan .
 docker run -p 8000:8000 -e SECRET_KEY=your-secret-key netscan
 ```
 
-For ARP/SYN stealth scanning (multi-probe engine), add network capabilities:
+For ARP/SYN stealth scanning, add network capabilities:
 
 ```bash
 docker run -p 8000:8000 \
@@ -62,9 +84,8 @@ docker run -p 8000:8000 \
   -e SECRET_KEY=your-secret-key netscan
 ```
 
-Without `--cap-add`, nmap falls back to unprivileged TCP-connect scanning only.
-
-Or with docker-compose:
+<details>
+<summary>docker-compose</summary>
 
 ```yaml
 services:
@@ -86,92 +107,31 @@ volumes:
   netscan-data:
 ```
 
-## Configuration
+</details>
 
-All settings are configured via environment variables or a `.env` file in the project root.
+## CLI
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEBUG` | `false` | Enable debug logging and relaxed security |
-| `SECRET_KEY` | *(empty)* | **Required in production.** Used for session signing. |
-| `DATABASE_URL` | `sqlite:///./netscan.db` | Database connection string |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
-| `DEFAULT_SCAN_INTERVAL_MINUTES` | `60` | Default scan interval per subnet |
-| `DEFAULT_MISS_THRESHOLD` | `3` | Consecutive misses before uncertain state |
-| `DEFAULT_QUARANTINE_HOURS` | `48` | Hours before uncertain host can become available |
-| `NMAP_TIMEOUT_SECONDS` | `300` | Per-scan timeout |
-| `WEBHOOK_TIMEOUT_SECONDS` | `10` | Outbound webhook timeout |
-| `WEBHOOK_MAX_RETRIES` | `3` | Webhook delivery retry count |
-| `LOG_FORMAT` | `text` | Log format: `text` or `json` |
-| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `LDAP_ENABLED` | `false` | Enable LDAP/AD authentication for dashboard |
-| `LDAP_SERVER_URI` | *(empty)* | LDAP server URI (e.g. `ldap://dc01.corp.local`) |
-| `LDAP_BIND_DN` | *(empty)* | Service account DN for LDAP bind |
-| `LDAP_BIND_PASSWORD` | *(empty)* | Service account password |
-| `LDAP_USER_SEARCH_BASE` | *(empty)* | OU containing users (e.g. `OU=Users,DC=corp,DC=local`) |
-| `LDAP_USER_SEARCH_FILTER` | `(sAMAccountName={username})` | LDAP filter for user lookup |
-| `LDAP_GROUP_SEARCH_BASE` | *(empty)* | OU containing groups |
-| `LDAP_GROUP_SEARCH_FILTER` | `(member={user_dn})` | LDAP filter for group membership |
-| `LDAP_START_TLS` | `false` | Use StartTLS for LDAP connection |
-| `LDAP_CA_CERT_FILE` | *(empty)* | Path to CA cert for LDAP TLS verification |
-
-## API Key Setup
-
-All API endpoints require authentication via `X-API-Key` header. Create your first key via the bootstrap endpoint:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/keys/bootstrap \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-admin-key"}'
+```
+netscan serve                          # Dashboard + API
+netscan serve --no-dashboard           # API only
+netscan serve --reload                 # Dev mode
+netscan serve --host 0.0.0.0 --port 9000
 ```
 
-The response contains your `raw_key` -- store it safely, it is never shown again. Subsequent keys require an existing key:
+## API
 
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/keys \
-  -H "X-API-Key: <your-existing-key>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "automation-key", "role": "operator"}'
-```
-
-## API Examples
-
-**Find next available IPs (for Terraform/provisioning):**
-
-```bash
-curl -H "X-API-Key: <key>" \
-  "http://localhost:8000/api/v1/ips/available?subnet_id=<SUBNET_UUID>&count=3"
-```
-
-**Trigger a subnet scan:**
-
-```bash
-curl -X POST -H "X-API-Key: <key>" \
-  http://localhost:8000/api/v1/subnets/<SUBNET_UUID>/scan
-```
-
-**Inspect IP history:**
-
-```bash
-curl -H "X-API-Key: <key>" \
-  http://localhost:8000/api/v1/ips/192.168.1.50/history
-```
+Full REST API with OpenAPI docs. [API Reference →](docs/api.md)
 
 ## Development
 
 ```bash
 pip install -e ".[test]"
 pytest -v
-```
-
-Linting and formatting:
-
-```bash
 ruff check netscan/
 ruff format --check netscan/
 ```
 
-The test suite uses an in-memory SQLite database and does not require nmap or API keys. CI runs automatically on every push and PR via GitHub Actions.
+Tests use in-memory SQLite. No nmap or API keys needed. CI runs on every push and PR.
 
 ## License
 
