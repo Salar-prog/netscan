@@ -69,7 +69,8 @@ netscan/
   cli.py           # Click CLI: netscan serve --dashboard/--no-dashboard, netscan login
 tests/             # pytest suite (conftest.py has shared fixtures)
 alembic/           # DB migrations
-docs/              # Internal docs (progress, changes, decisions, learnings, plans)
+docs/              # Public docs (api.md, qa-dashboard-testing.md)
+internal_docs/     # Internal docs (plan, progress, changes, decisions, learnings)
 ```
 
 ## Testing
@@ -125,7 +126,7 @@ Branch name prefixes: `feat/`, `fix/`, `docs/`, `chore/`.
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — setup, style, submission guide
 - [README.md](README.md) — features, configuration reference, API examples
-- [PLAN.md](PLAN.md) — original architecture specification
-- [docs/learnings.md](docs/learnings.md) — gotchas and lessons learned (read this before debugging)
-- [docs/decisions-log.md](docs/decisions-log.md) — rationale behind past decisions
-- [docs/progress.md](docs/progress.md) — implementation status per phase
+- [internal_docs/PLAN.md](internal_docs/PLAN.md) — original architecture specification
+- [internal_docs/learnings.md](internal_docs/learnings.md) — gotchas and lessons learned (read this before debugging)
+- [internal_docs/decisions-log.md](internal_docs/decisions-log.md) — rationale behind past decisions
+- [internal_docs/progress.md](internal_docs/progress.md) — implementation status per phase
