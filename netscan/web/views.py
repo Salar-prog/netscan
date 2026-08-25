@@ -18,18 +18,21 @@ templates = Jinja2Templates(directory=str(templates_path))
 web_router = APIRouter(include_in_schema=False)
 
 
-def _get_current_user(request: Request, session: Session) -> ApiKey | None:
-    """Extract and validate the session cookie, returning the ApiKey or None."""
+def _get_current_user(request: Request, session: Session) -> ApiKey | dict | None:
+    """Extract and validate the session cookie, returning ApiKey, LDAP info dict, or None."""
     cookie_val = request.cookies.get(COOKIE_NAME)
     if not cookie_val:
         return None
-    key_hash = validate_session_cookie(cookie_val)
-    if not key_hash:
+    auth_info = validate_session_cookie(cookie_val)
+    if not auth_info:
         return None
-    return session.exec(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active)).first()
+    if auth_info["type"] == "ldap":
+        return {"type": "ldap", "username": auth_info["username"], "role": auth_info["role"]}
+    key_rec = session.exec(select(ApiKey).where(ApiKey.key_hash == auth_info["key_hash"], ApiKey.is_active)).first()
+    return key_rec
 
 
-def _require_dashboard_user(request: Request, session: Session) -> ApiKey:
+def _require_dashboard_user(request: Request, session: Session) -> ApiKey | dict:
     """Return the authenticated user or redirect to /login."""
     user = _get_current_user(request, session)
     if not user:
