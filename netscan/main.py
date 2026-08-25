@@ -97,6 +97,16 @@ async def lifespan(app: FastAPI):
     settings.validate_for_production()
     logger.info("Initializing NetScan database...")
     init_db()
+    logger.info("Running Alembic migrations...")
+    try:
+        from alembic.config import Config as AlembicConfig
+        from alembic import command as alembic_command
+
+        alembic_cfg = AlembicConfig("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+        alembic_command.upgrade(alembic_cfg, "head")
+    except Exception as e:
+        logger.warning(f"Alembic migration skipped: {e}")
     logger.info("Starting NetScan scheduler...")
     scheduler.start()
     yield
