@@ -42,11 +42,16 @@ class Settings(BaseSettings):
     WEBHOOK_TIMEOUT_SECONDS: int = 10
     WEBHOOK_MAX_RETRIES: int = 3
 
+    # Dashboard session cookie (defaults to SECRET_KEY)
+    SESSION_SECRET_KEY: str = ""
+
     def validate_for_production(self) -> None:
         if not self.DEBUG and not self.SECRET_KEY:
             raise ValueError(
                 "SECRET_KEY must be set in production (DEBUG=False). Set it in your .env file or environment."
             )
+        if not self.SESSION_SECRET_KEY:
+            self.SESSION_SECRET_KEY = self.SECRET_KEY
 
 
 settings = Settings()

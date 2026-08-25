@@ -91,3 +91,28 @@ def auth_db_fixture():
         raw_key = res.json()["raw_key"]
         yield client, {"X-API-Key": raw_key}, engine
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="dashboard_client")
+def dashboard_client_fixture():
+    """Client with a valid session cookie for dashboard tests."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+
+    def get_session_override():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = get_session_override
+    with TestClient(app) as client:
+        res = client.post("/api/v1/auth/keys/bootstrap", json={"name": "test-key"})
+        raw_key = res.json()["raw_key"]
+        # Login via form POST to get session cookie
+        login_res = client.post("/login", data={"api_key": raw_key}, follow_redirects=False)
+        assert login_res.status_code == 303
+        yield client
+    app.dependency_overrides.clear()
