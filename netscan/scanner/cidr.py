@@ -1,14 +1,23 @@
 import ipaddress
 from typing import List
 
+from netscan.config import settings
+
 
 def validate_and_normalize_cidr(cidr_str: str) -> str:
     """Validate and normalize an IPv4 CIDR string (e.g. '192.168.1.0/24')."""
     try:
         network = ipaddress.IPv4Network(cidr_str.strip(), strict=False)
-        return str(network)
     except ValueError as e:
         raise ValueError(f"Invalid IPv4 CIDR '{cidr_str}': {e}") from e
+
+    if network.prefixlen < settings.MAX_SCAN_PREFIX_LENGTH:
+        raise ValueError(
+            f"CIDR '{cidr_str}' is too large (/{network.prefixlen}). "
+            f"Maximum allowed prefix length is /{settings.MAX_SCAN_PREFIX_LENGTH} "
+            f"({2 ** (32 - settings.MAX_SCAN_PREFIX_LENGTH) - 2} hosts max)."
+        )
+    return str(network)
 
 
 def expand_cidr_hosts(cidr_str: str, include_network_broadcast: bool = False) -> List[str]:

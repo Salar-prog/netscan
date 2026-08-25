@@ -9,13 +9,28 @@ from netscan.scanner.cidr import (
 
 def test_validate_and_normalize_cidr():
     assert validate_and_normalize_cidr("192.168.1.5/24") == "192.168.1.0/24"
-    assert validate_and_normalize_cidr("10.0.0.0/8") == "10.0.0.0/8"
+    assert validate_and_normalize_cidr("10.0.0.1/30") == "10.0.0.0/30"
+    assert validate_and_normalize_cidr("192.168.1.0/25") == "192.168.1.0/25"
 
     with pytest.raises(ValueError):
         validate_and_normalize_cidr("invalid-cidr")
 
     with pytest.raises(ValueError):
         validate_and_normalize_cidr("999.999.999.999/24")
+
+
+def test_validate_and_normalize_cidr_rejects_large_subnets():
+    with pytest.raises(ValueError, match="too large"):
+        validate_and_normalize_cidr("10.0.0.0/8")
+
+    with pytest.raises(ValueError, match="too large"):
+        validate_and_normalize_cidr("192.168.0.0/16")
+
+    with pytest.raises(ValueError, match="too large"):
+        validate_and_normalize_cidr("172.16.0.0/12")
+
+    with pytest.raises(ValueError, match="too large"):
+        validate_and_normalize_cidr("10.0.0.0/23")
 
 
 def test_expand_cidr_hosts_24():

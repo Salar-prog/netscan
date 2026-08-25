@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     NMAP_TIMEOUT_SECONDS: int = 300
     NMAP_TIMING_TEMPLATE: str = "-T4"
     TOP_TCP_PORTS: str = "80,443,22,445,3389,8080,8443,53"
+    MAX_SCAN_PREFIX_LENGTH: int = 24
 
     # CORS
     ALLOWED_ORIGINS: str = "*"
