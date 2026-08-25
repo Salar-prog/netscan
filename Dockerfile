@@ -1,4 +1,4 @@
-FROM python:3.12.8-slim AS builder
+FROM python:3.14.6-slim AS builder
 
 WORKDIR /build
 
@@ -11,7 +11,7 @@ COPY netscan/ netscan/
 
 RUN pip wheel --no-cache-dir --wheel-dir /build/wheels .[test]
 
-FROM python:3.12.8-slim AS runtime
+FROM python:3.14.6-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap curl libldap-2.5-0 libsasl2-2 \
