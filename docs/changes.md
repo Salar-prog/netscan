@@ -228,6 +228,24 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.5 — Dashboard Proxy Routes (DONE)
+- `netscan/web/views.py`: Added 8 proxy routes under `/web/*` with session cookie auth and role checking:
+  - `POST /web/subnets` → create subnet
+  - `POST /web/subnets/{id}/scan` → trigger scan
+  - `POST /web/auth/keys` → generate key
+  - `DELETE /web/auth/keys/{id}` → revoke key
+  - `POST /web/webhooks` → create webhook
+  - `DELETE /web/webhooks/{id}` → delete webhook
+  - `POST /web/webhooks/{id}/test` → test webhook
+  - `PATCH /web/ips/{ip}` → reserve/release IP
+- Added role helpers: `_get_user_role()`, `_require_role()`
+- Fixed duplicate `return response` in `_login_api_key()`
+- Updated all 9 HTMX targets in templates:
+  - `index.html`: subnet create + scan trigger
+  - `matrix.html`: scan trigger
+  - `settings.html`: key generate/revoke, webhook CRUD/test
+  - `drawer.html`: IP reservation
+
 ### Stage 10.4 — Dashboard Login with LDAP (DONE)
 - `netscan/web/templates/login.html`: Dynamic form — shows username/password when `ldap_enabled`, API key field otherwise; subtitle changes to "corporate credentials" for LDAP
 - `netscan/web/views.py`: `login_view` passes `ldap_enabled` to template; `login_submit` dispatches to `_login_ldap()` (LDAP bind → role map → ldap cookie) or `_login_api_key()` (existing behavior)

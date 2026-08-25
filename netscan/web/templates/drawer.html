@@ -96,7 +96,7 @@
                 is_reserved: document.getElementById('reserve-toggle').checked,
                 hostname: document.getElementById('hostname-input').value || null,
             };
-            await fetch('/api/v1/ips/{{ ip.ip }}', {
+            await fetch('/web/ips/{{ ip.ip }}', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),

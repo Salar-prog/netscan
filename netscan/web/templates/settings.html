@@ -36,7 +36,7 @@
                 </div>
                 <div class="flex items-center space-x-3 text-slate-500 text-[11px]">
                     <span>Last used: {{ k.last_used_at or 'Never' }}</span>
-                    <button hx-delete="/api/v1/auth/keys/{{ k.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300">
+                    <button hx-delete="/web/auth/keys/{{ k.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300">
                         Revoke
                     </button>
                 </div>
@@ -68,10 +68,10 @@
                     <code class="ml-2 text-indigo-400 font-mono">{{ wh.url }}</code>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button hx-post="/api/v1/webhooks/{{ wh.id }}/test" hx-swap="none" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]">
+                    <button hx-post="/web/webhooks/{{ wh.id }}/test" hx-swap="none" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px]">
                         Test Payload
                     </button>
-                    <button hx-delete="/api/v1/webhooks/{{ wh.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300 px-2 py-1">
+                    <button hx-delete="/web/webhooks/{{ wh.id }}" hx-swap="none" onclick="setTimeout(() => location.reload(), 500);" class="text-rose-400 hover:text-rose-300 px-2 py-1">
                         Delete
                     </button>
                 </div>
@@ -85,7 +85,7 @@
 <div id="key-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
         <h3 class="text-lg font-bold text-white">Generate API Key</h3>
-        <form hx-post="/api/v1/auth/keys" hx-target="body" class="space-y-4">
+        <form hx-post="/web/auth/keys" hx-target="body" class="space-y-4">
             <div>
                 <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Key Label / Client Name</label>
                 <input type="text" name="name" required placeholder="e.g. Terraform-Automator" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
@@ -110,7 +110,7 @@
 <div id="webhook-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
         <h3 class="text-lg font-bold text-white">Register Webhook</h3>
-        <form hx-post="/api/v1/webhooks" hx-target="body" class="space-y-4">
+        <form hx-post="/web/webhooks" hx-target="body" class="space-y-4">
             <div>
                 <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">Webhook Name</label>
                 <input type="text" name="name" required placeholder="e.g. Security SIEM Webhook" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">

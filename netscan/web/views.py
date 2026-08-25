@@ -1,16 +1,33 @@
+import asyncio
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from netscan.api.auth import hash_key
 from netscan.config import settings
 from netscan.db import get_session
-from netscan.models import ApiKey, IPAddress, IPHistory, IPStatus, ScanJob, Subnet, Webhook
-from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata
+from netscan.models import (
+    ApiKey,
+    EventType,
+    IPAddress,
+    IPHistory,
+    IPStatus,
+    Role,
+    ScanJob,
+    ScanStatus,
+    Subnet,
+    TriggerType,
+    Webhook,
+    utc_now,
+)
+from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
+from netscan.services.scan_service import scan_service
+from netscan.services.scheduler_service import scheduler
 from netscan.web.session import COOKIE_NAME, create_session_cookie, validate_session_cookie
 
 templates_path = Path(__file__).parent / "templates"
@@ -120,7 +137,6 @@ async def _login_api_key(form: dict, request: Request, session: Session):
         samesite="lax",
         path="/",
     )
-    return response
     return response
 
 
@@ -376,3 +392,223 @@ def settings_view(request: Request, session: Session = Depends(get_session)):
             "webhooks": webhooks,
         },
     )
+
+
+# ── Role helpers ─────────────────────────────────────────────────────────────
+
+
+def _get_user_role(user: ApiKey | dict) -> Role:
+    if isinstance(user, dict):
+        return Role(user["role"])
+    return user.role
+
+
+def _require_role(user: ApiKey | dict, *allowed: Role):
+    role = _get_user_role(user)
+    if role not in allowed:
+        raise HTTPException(status_code=403, detail=f"Requires role: {', '.join(r.value for r in allowed)}")
+
+
+# ── Proxy Routes (cookie-protected, fix broken HTMX writes) ─────────────────
+
+
+class SubnetCreate(BaseModel):
+    cidr: str
+    name: str
+
+
+class WebhookCreate(BaseModel):
+    name: str
+    url: str
+    events: list[str] = ["ip.state_changed", "scan.completed"]
+
+
+class IPReservationUpdate(BaseModel):
+    is_reserved: bool
+    hostname: str | None = None
+
+
+@web_router.post("/web/subnets")
+def web_create_subnet(request: Request, payload: SubnetCreate, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    try:
+        norm_cidr = validate_and_normalize_cidr(payload.cidr)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    existing = session.exec(select(Subnet).where(Subnet.cidr == norm_cidr)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Subnet '{norm_cidr}' already exists.")
+
+    subnet = Subnet(cidr=norm_cidr, name=payload.name)
+    session.add(subnet)
+    session.commit()
+    session.refresh(subnet)
+    scheduler.update_subnet_job(subnet)
+
+    if request.headers.get("hx-request"):
+        return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@web_router.post("/web/subnets/{subnet_id}/scan")
+def web_trigger_scan(subnet_id: uuid.UUID, request: Request, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    subnet = session.get(Subnet, subnet_id)
+    if not subnet:
+        raise HTTPException(status_code=404, detail="Subnet not found")
+
+    active_job = session.exec(
+        select(ScanJob).where(
+            ScanJob.subnet_id == subnet.id,
+            ScanJob.status.in_([ScanStatus.QUEUED, ScanStatus.RUNNING]),
+        )
+    ).first()
+    if active_job:
+        raise HTTPException(status_code=409, detail="Scan already in progress.")
+
+    job = ScanJob(subnet_id=subnet.id, status=ScanStatus.QUEUED, triggered_by=TriggerType.MANUAL_API)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    asyncio.create_task(scan_service.execute_scan(job.id))
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"message": "Scan queued", "scan_job_id": str(job.id)})
+    return RedirectResponse(url=f"/subnets/{subnet_id}/matrix", status_code=303)
+
+
+@web_router.post("/web/auth/keys")
+def web_create_key(request: Request, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN)
+
+    from netscan.api.auth import generate_api_key
+
+    raw_key, key_hash, prefix = generate_api_key()
+    api_key_rec = ApiKey(name="dashboard-key", key_hash=key_hash, prefix=prefix, role=Role.OPERATOR, is_active=True)
+    session.add(api_key_rec)
+    session.commit()
+    session.refresh(api_key_rec)
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"raw_key": raw_key, "prefix": prefix, "message": "Key created. Store it — shown once."})
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.delete("/web/auth/keys/{key_id}")
+def web_revoke_key(key_id: uuid.UUID, request: Request, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN)
+
+    rec = session.get(ApiKey, key_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="API Key not found")
+    session.delete(rec)
+    session.commit()
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"message": "Key revoked"})
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/web/webhooks")
+def web_create_webhook(request: Request, payload: WebhookCreate, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    import secrets as _secrets
+
+    raw_secret = _secrets.token_urlsafe(32)
+    wh = Webhook(name=payload.name, url=payload.url, secret=raw_secret, events=payload.events, is_active=True)
+    session.add(wh)
+    session.commit()
+    session.refresh(wh)
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"secret": raw_secret, "message": "Webhook created. Store the secret — shown once."})
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.delete("/web/webhooks/{webhook_id}")
+def web_delete_webhook(webhook_id: uuid.UUID, request: Request, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    wh = session.get(Webhook, webhook_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    session.delete(wh)
+    session.commit()
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"message": "Webhook deleted"})
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/web/webhooks/{webhook_id}/test")
+async def web_test_webhook(webhook_id: uuid.UUID, request: Request, session: Session = Depends(get_session)):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    from netscan.services.webhook_service import WebhookDispatcher
+
+    wh = session.get(Webhook, webhook_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+
+    test_data = {"test": True, "message": "NetScan test webhook delivery"}
+    await WebhookDispatcher.dispatch_event("webhook.test", test_data, session)
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"message": f"Test payload dispatched to {wh.url}"})
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.patch("/web/ips/{ip_address}")
+def web_update_ip(
+    ip_address: str, request: Request, payload: IPReservationUpdate, session: Session = Depends(get_session)
+):
+    user = _require_dashboard_user(request, session)
+    _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not found.")
+
+    old_status = rec.status
+    now = utc_now()
+
+    if payload.is_reserved:
+        rec.status = IPStatus.ASSIGNED_RESERVED
+    elif rec.status == IPStatus.ASSIGNED_RESERVED:
+        rec.status = IPStatus.AVAILABLE_CANDIDATE
+
+    if payload.hostname is not None:
+        rec.hostname = payload.hostname
+
+    rec.updated_at = now
+    session.add(rec)
+
+    if old_status != rec.status:
+        history = IPHistory(
+            ip_address_id=rec.id,
+            event_type=EventType.RESERVED_TOGGLE,
+            old_status=old_status.value,
+            new_status=rec.status.value,
+            probe_details={"updated_by": "dashboard_user"},
+            timestamp=now,
+        )
+        session.add(history)
+
+    session.commit()
+    session.refresh(rec)
+
+    if request.headers.get("hx-request"):
+        return JSONResponse({"status": rec.status.value, "ip": rec.ip})
+    return RedirectResponse(url="/", status_code=303)
