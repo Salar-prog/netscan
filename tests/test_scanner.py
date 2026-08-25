@@ -1,7 +1,8 @@
+import asyncio
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
 from netscan.models import DiscoveryMethod
 from netscan.scanner.runner import NmapScanner
-
-import pytest
 
 SAMPLE_NMAP_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nmaprun>
@@ -174,3 +175,80 @@ def test_build_nmap_args_raises_when_nmap_missing():
 
     with pytest.raises(RuntimeError):
         scanner.build_nmap_args("192.168.1.0/24")
+
+
+@pytest.mark.asyncio
+async def test_scan_cidr_success():
+    scanner = NmapScanner()
+    scanner.nmap_path = "/usr/bin/nmap"
+    scanner.is_privileged = True
+
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (SAMPLE_NMAP_XML.encode(), b"")
+    mock_process.returncode = 0
+
+    async def fake_wait_for(coro, **kwargs):
+        return await coro
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.wait_for", side_effect=fake_wait_for):
+            results = await scanner.scan_cidr("192.168.1.0/24")
+
+    assert len(results) == 2
+    assert "192.168.1.1" in results
+    assert "192.168.1.50" in results
+
+
+@pytest.mark.asyncio
+async def test_scan_cidr_timeout_kills_process():
+    scanner = NmapScanner()
+    scanner.nmap_path = "/usr/bin/nmap"
+    scanner.is_privileged = True
+
+    mock_process = AsyncMock()
+    mock_process.kill = MagicMock()
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
+            with pytest.raises(TimeoutError, match="timed out"):
+                await scanner.scan_cidr("192.168.1.0/24")
+
+    mock_process.kill.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_scan_cidr_nonzero_exit_raises():
+    scanner = NmapScanner()
+    scanner.nmap_path = "/usr/bin/nmap"
+    scanner.is_privileged = True
+
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (b"", b"nmap: command not found")
+    mock_process.returncode = 127
+
+    async def fake_wait_for(coro, **kwargs):
+        return await coro
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.wait_for", side_effect=fake_wait_for):
+            with pytest.raises(RuntimeError, match="Nmap exited with code 127"):
+                await scanner.scan_cidr("192.168.1.0/24")
+
+
+@pytest.mark.asyncio
+async def test_scan_cidr_invalid_xml_output():
+    scanner = NmapScanner()
+    scanner.nmap_path = "/usr/bin/nmap"
+    scanner.is_privileged = True
+
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (b"not-valid-xml", b"")
+    mock_process.returncode = 0
+
+    async def fake_wait_for(coro, **kwargs):
+        return await coro
+
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.wait_for", side_effect=fake_wait_for):
+            with pytest.raises(ValueError, match="Failed to parse"):
+                await scanner.scan_cidr("192.168.1.0/24")
