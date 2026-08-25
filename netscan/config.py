@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "*"
 
+    # Trusted Proxies (comma-separated IPs for X-Forwarded-For)
+    TRUSTED_PROXIES: str = ""
+
     # Logging
     LOG_FORMAT: str = "text"  # "text" for dev, "json" for production
     LOG_LEVEL: str = "INFO"
