@@ -1,4 +1,3 @@
-from typing import Optional
 from fastapi import Request
 from slowapi import Limiter
 from netscan.config import settings

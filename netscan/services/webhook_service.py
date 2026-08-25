@@ -102,4 +102,4 @@ class WebhookDispatcher:
                         )
 
                     if attempt < settings.WEBHOOK_MAX_RETRIES - 1:
-                        await asyncio.sleep(min(2 ** attempt, 30))
+                        await asyncio.sleep(min(2**attempt, 30))

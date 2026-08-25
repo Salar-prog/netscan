@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     TRUSTED_PROXIES: str = ""
 
     # Webhook SSRF Protection (comma-separated CIDRs to block)
-    WEBHOOK_BLOCKED_RANGES: str = "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.169.254/32,::1/128,fd00::/8"
+    WEBHOOK_BLOCKED_RANGES: str = (
+        "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.169.254/32,::1/128,fd00::/8"
+    )
 
     # Logging
     LOG_FORMAT: str = "text"  # "text" for dev, "json" for production

@@ -38,9 +38,7 @@ def _is_url_blocked(url: str) -> bool:
                 return False
 
         blocked = [
-            ipaddress.ip_network(cidr.strip())
-            for cidr in settings.WEBHOOK_BLOCKED_RANGES.split(",")
-            if cidr.strip()
+            ipaddress.ip_network(cidr.strip()) for cidr in settings.WEBHOOK_BLOCKED_RANGES.split(",") if cidr.strip()
         ]
 
         return any(ip in network for network in blocked)

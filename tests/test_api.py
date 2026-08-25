@@ -206,7 +206,12 @@ def test_scan_concurrency_guard(auth_db):
     from netscan.models import ScanJob, ScanStatus, TriggerType
 
     with Session(engine) as session:
-        job = ScanJob(id=uuid.uuid4(), subnet_id=uuid.UUID(subnet_id), status=ScanStatus.RUNNING, triggered_by=TriggerType.MANUAL_API)
+        job = ScanJob(
+            id=uuid.uuid4(),
+            subnet_id=uuid.UUID(subnet_id),
+            status=ScanStatus.RUNNING,
+            triggered_by=TriggerType.MANUAL_API,
+        )
         session.add(job)
         session.commit()
 
