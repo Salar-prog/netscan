@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -99,3 +100,6 @@ class WebhookDispatcher:
                                 }
                             },
                         )
+
+                    if attempt < settings.WEBHOOK_MAX_RETRIES - 1:
+                        await asyncio.sleep(min(2 ** attempt, 30))
