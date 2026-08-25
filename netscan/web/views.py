@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
 from netscan.api.auth import hash_key
+from netscan.config import settings
 from netscan.db import get_session
 from netscan.models import ApiKey, IPAddress, IPHistory, IPStatus, ScanJob, Subnet, Webhook
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata
@@ -50,22 +51,63 @@ def _require_dashboard_user(request: Request, session: Session) -> ApiKey | dict
 
 @web_router.get("/login", response_class=HTMLResponse)
 def login_view(request: Request):
-    return templates.TemplateResponse(request=request, name="login.html", context={})
+    return templates.TemplateResponse(
+        request=request, name="login.html", context={"ldap_enabled": settings.LDAP_ENABLED}
+    )
 
 
 @web_router.post("/login")
 async def login_submit(request: Request, session: Session = Depends(get_session)):
     form = await request.form()
+
+    if settings.LDAP_ENABLED:
+        return await _login_ldap(form, request)
+
+    return await _login_api_key(form, request, session)
+
+
+async def _login_ldap(form: dict, request: Request):
+    from netscan.auth.ldap import ldap_authenticate, map_groups_to_role
+    from netscan.web.session import create_ldap_session_cookie
+
+    username = form.get("username", "").strip()
+    password = form.get("password", "")
+
+    if not username or not password:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"ldap_enabled": True, "error": "Username and password are required."},
+        )
+
+    result = ldap_authenticate(username, password)
+    if not result:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"ldap_enabled": True, "error": "Invalid credentials or LDAP unavailable."},
+        )
+
+    role = map_groups_to_role(result["groups"])
+    cookie_value = create_ldap_session_cookie(result["username"], role.value)
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(COOKIE_NAME, cookie_value, max_age=86400 * 7, httponly=True, samesite="lax", path="/")
+    return response
+
+
+async def _login_api_key(form: dict, request: Request, session: Session):
     api_key = form.get("api_key", "")
 
     if not api_key:
-        return templates.TemplateResponse(request=request, name="login.html", context={"error": "API key is required."})
+        return templates.TemplateResponse(
+            request=request, name="login.html", context={"ldap_enabled": False, "error": "API key is required."}
+        )
 
     key_hash = hash_key(api_key.strip())
     key_rec = session.exec(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active)).first()
     if not key_rec:
         return templates.TemplateResponse(
-            request=request, name="login.html", context={"error": "Invalid or revoked API key."}
+            request=request, name="login.html", context={"ldap_enabled": False, "error": "Invalid or revoked API key."}
         )
 
     cookie_value = create_session_cookie(api_key.strip())
@@ -78,6 +120,7 @@ async def login_submit(request: Request, session: Session = Depends(get_session)
         samesite="lax",
         path="/",
     )
+    return response
     return response
 
 

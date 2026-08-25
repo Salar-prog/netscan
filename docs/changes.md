@@ -228,6 +228,10 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.4 — Dashboard Login with LDAP (DONE)
+- `netscan/web/templates/login.html`: Dynamic form — shows username/password when `ldap_enabled`, API key field otherwise; subtitle changes to "corporate credentials" for LDAP
+- `netscan/web/views.py`: `login_view` passes `ldap_enabled` to template; `login_submit` dispatches to `_login_ldap()` (LDAP bind → role map → ldap cookie) or `_login_api_key()` (existing behavior)
+
 ### Stage 10.3 — Session Cookie Dual Format (DONE)
 - `netscan/web/session.py`: `validate_session_cookie()` now returns `{"type": "ak", "key_hash": ...}` or `{"type": "ldap", "username": ..., "role": ...}`; added `create_ldap_session_cookie()`; backward compatible with existing `ak:` cookies
 - `netscan/web/views.py`: `_get_current_user()` handles both cookie types; `_require_dashboard_user()` return type updated
