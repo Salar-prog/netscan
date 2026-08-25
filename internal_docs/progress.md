@@ -290,6 +290,24 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 
 ---
 
+## Repo Restructure & v0.1.0 Release (COMPLETE)
+
+**Status:** DONE — tag `v0.1.0` pushed, image live on GHCR
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Internal docs migration | Done | PLAN/walkthrough/dev-logs/audit/QA guides → `internal_docs/`; public docs stay in `docs/` |
+| `.env.example` | Done | CONTRIBUTING referenced a nonexistent file; generated from config.py fields |
+| pytest config dedup | Done | Removed `pytest.ini` (shadowed pyproject, caused config warning) |
+| Package metadata | Done | license/readme/authors/keywords/classifiers/urls; License classifier dropped (PEP 639 rejects it alongside SPDX expression) |
+| Community files | Done | CHANGELOG (Keep-a-Changelog), SECURITY.md, CODE_OF_CONDUCT.md |
+| GitHub templates | Done | PR template, bug/feature issue templates, dependabot (pip/docker/actions weekly) |
+| GHCR publishing | Done | `.github/workflows/publish.yml` — on `v*` tags, buildx → ghcr.io/salar-prog/netscan:{version,major.minor,latest} |
+| Repo polish | Done | Description + 8 topics via gh CLI |
+| Release | Done | Tag `v0.1.0` → Publish workflow green → package tags `latest`, `0.1`, `0.1.0` |
+
+---
+
 ## Summary
 
 | Phase | Status | Tests |
@@ -304,3 +322,4 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | Phase 8 | DEFERRED | — |
 | Phase 9 | COMPLETE | 93/93 pass |
 | Phase 10 | COMPLETE | 115/115 pass |
+| Restructure | COMPLETE | v0.1.0 released, CI + Publish green |

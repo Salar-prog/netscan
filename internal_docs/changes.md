@@ -302,3 +302,35 @@ Phase 10 addresses two critical production blockers:
 - Hardcoded group mapping (not configurable)
 - LDAP down = reject login (scripts unaffected)
 - Dashboard writes use server-side proxy routes (not client-side API key injection)
+
+---
+
+## Repo Restructure & v0.1.0 Release
+
+### Internal docs migration
+- `git mv` PLAN.md, walkthrough.md, docs/{progress,changes,decisions-log,learnings,plan-hardening}.md, extras/netscan-production-readiness-audit.md, qa/manual-test-guide.{md,html} → `internal_docs/`
+- Updated AGENTS.md architecture map + Further Reading links
+
+### Onboarding fix
+- Created `.env.example` from netscan/config.py fields (CONTRIBUTING step was broken)
+
+### Pytest config dedup
+- Deleted pytest.ini; `[tool.pytest.ini_options]` in pyproject.toml is now the single source (removes "ignoring pytest config" warning)
+
+### Package metadata
+- pyproject.toml: license="MIT", readme, authors, keywords, 12 classifiers, [project.urls]
+- fix: removed `License :: OSI Approved :: MIT License` classifier — modern setuptools enforces PEP 639 and errors when a License classifier coexists with an SPDX license expression
+
+### Community files
+- CHANGELOG.md (Keep-a-Changelog format, v0.1.0 backfilled)
+- SECURITY.md (private advisory reporting, security model notes)
+- CODE_OF_CONDUCT.md (Contributor Covenant 2.1)
+- .github/: PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/bug_report.md + feature_request.md, dependabot.yml
+
+### GHCR publishing
+- .github/workflows/publish.yml: on v* tags → buildx → ghcr.io/salar-prog/netscan with semver + latest tags, GHA layer cache
+- README: prebuilt-image pull section; CONTRIBUTING: ldap system headers prereq, updated structure tree, Conventional Commits, security issue routing
+
+### Release
+- Repo description + topics set via gh CLI
+- Tagged v0.1.0; Publish workflow green; package live with tags latest / 0.1 / 0.1.0
