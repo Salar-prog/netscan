@@ -45,6 +45,18 @@ class Settings(BaseSettings):
     # Dashboard session cookie (defaults to SECRET_KEY)
     SESSION_SECRET_KEY: str = ""
 
+    # LDAP / Active Directory
+    LDAP_ENABLED: bool = False
+    LDAP_SERVER_URI: str = ""
+    LDAP_BIND_DN: str = ""
+    LDAP_BIND_PASSWORD: str = ""
+    LDAP_USER_SEARCH_BASE: str = ""
+    LDAP_USER_SEARCH_FILTER: str = "(sAMAccountName={username})"
+    LDAP_GROUP_SEARCH_BASE: str = ""
+    LDAP_GROUP_SEARCH_FILTER: str = "(member={user_dn})"
+    LDAP_START_TLS: bool = False
+    LDAP_CA_CERT_FILE: str = ""
+
     def validate_for_production(self) -> None:
         if not self.DEBUG and not self.SECRET_KEY:
             raise ValueError(

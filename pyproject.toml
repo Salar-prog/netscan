@@ -19,6 +19,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "alembic>=1.13.0",
     "click>=8.0",
+    "python-ldap>=3.4.0",
 ]
 
 [project.scripts]
