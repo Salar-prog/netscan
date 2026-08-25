@@ -10,18 +10,24 @@ Thanks for your interest in contributing. Here's how to get started.
    cd netscan
    ```
 
-2. Install in editable mode with test dependencies:
+2. Install system headers required by `python-ldap`:
+   ```bash
+   sudo apt install libldap2-dev libsasl2-dev   # Debian/Ubuntu
+   brew install openldap                        # macOS
+   ```
+
+3. Install in editable mode with test dependencies:
    ```bash
    pip install -e ".[test]"
    ```
 
-3. Install nmap (required for the scanner):
+4. Install nmap (required for the scanner):
    ```bash
    sudo apt install nmap   # Debian/Ubuntu
    brew install nmap       # macOS
    ```
 
-4. Copy the example env file and adjust as needed:
+5. Copy the example env file and adjust as needed:
    ```bash
    cp .env.example .env
    ```
@@ -49,14 +55,18 @@ Tests use an in-memory SQLite database -- no nmap or API keys required.
 netscan/
   api/v1/          # REST API endpoints
   api/auth.py      # API key authentication
+  auth/            # LDAP/AD authentication (bind + group→role mapping)
   scanner/         # Nmap runner, CIDR utils, classifier
-  services/        # Scan scheduler, webhook dispatcher
-  web/             # HTMX dashboard, Jinja2 templates
+  services/        # Scan orchestration, scheduler, webhook dispatcher
+  web/             # HTMX dashboard, templates, session cookies, /web/* proxy routes
   config.py        # Settings via pydantic-settings
   models.py        # SQLModel schemas
-  main.py          # FastAPI app, lifespan, middleware
-tests/             # Test suite
+  main.py          # FastAPI app factory, lifespan, middleware
+  cli.py           # netscan serve / netscan login
+tests/             # Test suite (pytest)
 alembic/           # Database migrations
+docs/              # Public docs (API reference, QA guide)
+internal_docs/     # Internal dev logs (plans, progress, decisions)
 ```
 
 ## Submitting Changes
@@ -66,7 +76,7 @@ alembic/           # Database migrations
    git checkout -b your-feature
    ```
 
-2. Make your changes. Keep commits focused -- one logical change per commit.
+2. Make your changes. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`) — one logical change per commit.
 
 3. Run the full test suite before pushing:
    ```bash
@@ -91,8 +101,12 @@ alembic/           # Database migrations
 
 ## Reporting Issues
 
-Open a GitHub issue with:
+Open a [GitHub issue](https://github.com/Salar-prog/netscan/issues) with:
 - What you expected to happen
 - What actually happened
 - Steps to reproduce
 - Python version and OS
+
+**Security vulnerabilities must not be reported publicly.** Use
+[private security advisories](https://github.com/Salar-prog/netscan/security/advisories/new)
+instead — see [SECURITY.md](SECURITY.md) for the disclosure policy.

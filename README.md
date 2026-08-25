@@ -13,6 +13,8 @@ pip install -e .
 netscan serve
 ```
 
+> Building from source needs `libldap2-dev` and `libsasl2-dev` system headers (see [Development](#development)). The Docker image has no such requirement.
+
 Dashboard at `http://localhost:8000/`. Swagger at `/docs`.
 
 ## The Dashboard
@@ -70,6 +72,16 @@ Environment variables or `.env` file:
 | `LDAP_CA_CERT_FILE` | *(empty)* | CA cert for LDAP TLS |
 
 ## Docker
+
+Prebuilt images are published to GitHub Container Registry on every release:
+
+```bash
+docker pull ghcr.io/salar-prog/netscan:latest   # or pin: 0.1.0 / 0.1
+docker run -p 8000:8000 -e SECRET_KEY=your-secret-key \
+  ghcr.io/salar-prog/netscan:latest
+```
+
+Or build from source:
 
 ```bash
 docker build -t netscan .
