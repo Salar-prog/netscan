@@ -132,6 +132,8 @@ ruff check netscan/
 ruff format --check netscan/
 ```
 
+`python-ldap` needs system headers to compile: `sudo apt install libldap2-dev libsasl2-dev` (Debian/Ubuntu) before installing.
+
 Tests use in-memory SQLite. No nmap or API keys needed. CI runs on every push and PR.
 
 ## License

@@ -2,6 +2,10 @@ FROM python:3.12.8-slim AS builder
 
 WORKDIR /build
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libldap2-dev libsasl2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml README.md ./
 COPY netscan/ netscan/
 
@@ -10,7 +14,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /build/wheels .[test]
 FROM python:3.12.8-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nmap curl \
+    nmap curl libldap-2.5-0 libsasl2-2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
