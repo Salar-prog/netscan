@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlmodel import SQLModel, Session, create_engine
 from netscan.config import settings
 
@@ -11,8 +12,14 @@ engine = create_engine(
 
 
 def init_db() -> None:
-    """Initialize database tables."""
+    """Initialize database tables and configure SQLite for production use."""
     SQLModel.metadata.create_all(engine)
+
+    if settings.DATABASE_URL.startswith("sqlite"):
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL"))
+            conn.execute(text("PRAGMA busy_timeout=5000"))
+            conn.commit()
 
 
 def get_session():
