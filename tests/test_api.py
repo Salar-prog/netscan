@@ -194,6 +194,28 @@ def test_patch_unknown_ip_returns_404(auth_client):
     assert res.status_code == 404
 
 
+def test_scan_concurrency_guard(auth_db):
+    client, headers, engine = auth_db
+
+    res = client.post("/api/v1/subnets", json={"cidr": "10.20.0.0/30", "name": "Concurrency Test"}, headers=headers)
+    subnet_id = res.json()["id"]
+
+    # Create an active scan job directly in the DB
+    import uuid
+    from sqlmodel import Session
+    from netscan.models import ScanJob, ScanStatus, TriggerType
+
+    with Session(engine) as session:
+        job = ScanJob(id=uuid.uuid4(), subnet_id=uuid.UUID(subnet_id), status=ScanStatus.RUNNING, triggered_by=TriggerType.MANUAL_API)
+        session.add(job)
+        session.commit()
+
+    # Second trigger should be rejected
+    dup_scan = client.post(f"/api/v1/subnets/{subnet_id}/scan", headers=headers)
+    assert dup_scan.status_code == 409
+    assert "already in progress" in dup_scan.json()["detail"]
+
+
 def test_get_ip_detail_and_404(auth_db):
     client, headers, engine = auth_db
     subnet_id = seed_subnet(engine)

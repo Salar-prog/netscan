@@ -236,6 +236,18 @@ async def trigger_subnet_scan(
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")
 
+    active_job = session.exec(
+        select(ScanJob).where(
+            ScanJob.subnet_id == subnet.id,
+            ScanJob.status.in_([ScanStatus.QUEUED, ScanStatus.RUNNING]),
+        )
+    ).first()
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Scan already in progress for subnet {subnet.cidr} (job {active_job.id}).",
+        )
+
     job = ScanJob(
         subnet_id=subnet.id,
         status=ScanStatus.QUEUED,
