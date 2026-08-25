@@ -54,6 +54,16 @@ docker build -t netscan .
 docker run -p 8000:8000 -e SECRET_KEY=your-secret-key netscan
 ```
 
+For ARP/SYN stealth scanning (multi-probe engine), add network capabilities:
+
+```bash
+docker run -p 8000:8000 \
+  --cap-add=NET_RAW --cap-add=NET_ADMIN \
+  -e SECRET_KEY=your-secret-key netscan
+```
+
+Without `--cap-add`, nmap falls back to unprivileged TCP-connect scanning only.
+
 Or with docker-compose:
 
 ```yaml
@@ -66,6 +76,9 @@ services:
       - SECRET_KEY=your-secret-key
       - DEBUG=false
       - ALLOWED_ORIGINS=https://your-domain.com
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     volumes:
       - netscan-data:/app/netscan.db
 
