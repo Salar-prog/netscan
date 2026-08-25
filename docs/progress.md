@@ -303,4 +303,4 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | Phase 7 | COMPLETE | 65/65 pass |
 | Phase 8 | DEFERRED | — |
 | Phase 9 | COMPLETE | 93/93 pass |
-| Phase 10 | IN PROGRESS (10.5) | — |
+| Phase 10 | IN PROGRESS (10.7) | — |

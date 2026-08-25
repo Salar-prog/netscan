@@ -228,6 +228,12 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.7 — CLI LDAP Login (DONE)
+- `netscan/cli.py`: Added `netscan login` command — prompts for username/password, authenticates via LDAP, creates API key with mapped role, prints raw key for user to save
+
+### Stage 10.6 — Update Templates (DONE — merged into 10.5)
+- All 9 HTMX targets in templates updated from `/api/v1/*` to `/web/*` as part of Stage 10.5 commit.
+
 ### Stage 10.5 — Dashboard Proxy Routes (DONE)
 - `netscan/web/views.py`: Added 8 proxy routes under `/web/*` with session cookie auth and role checking:
   - `POST /web/subnets` → create subnet

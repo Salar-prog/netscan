@@ -19,3 +19,55 @@ def serve(host, port, dashboard, reload):
     import uvicorn
 
     uvicorn.run(app, host=host, port=port, reload=reload)
+
+
+@main.command()
+def login():
+    """Authenticate via LDAP and create an API key for CLI/script use."""
+    from netscan.config import settings
+
+    if not settings.LDAP_ENABLED:
+        click.echo("LDAP is not enabled. Set LDAP_ENABLED=true in your .env file.")
+        return
+
+    username = click.prompt("Username")
+    password = click.prompt("Password", hide_input=True)
+
+    from netscan.auth.ldap import ldap_authenticate, map_groups_to_role
+    from netscan.api.auth import generate_api_key
+    from netscan.db import get_session
+    from netscan.models import ApiKey
+
+    result = ldap_authenticate(username, password)
+    if not result:
+        click.echo("Authentication failed. Check your credentials or LDAP server availability.")
+        return
+
+    role = map_groups_to_role(result["groups"])
+    click.echo(f"Authenticated as {result['username']} (role: {role.value})")
+
+    raw_key, key_hash, prefix = generate_api_key()
+    api_key_rec = ApiKey(
+        name=f"cli-{result['username']}",
+        key_hash=key_hash,
+        prefix=prefix,
+        role=role,
+        is_active=True,
+    )
+
+    # Use the DB session from the generator
+    session = next(get_session())
+    try:
+        session.add(api_key_rec)
+        session.commit()
+    except Exception:
+        session.rollback()
+        click.echo("Failed to create API key.")
+        return
+    finally:
+        session.close()
+
+    click.echo(f"\nAPI key created (role: {role.value}):\n")
+    click.echo(f"  {raw_key}\n")
+    click.echo("Store this key safely. It will never be shown again.")
+    click.echo(f"\nUsage: export NETSCAN_API_KEY={raw_key}")
