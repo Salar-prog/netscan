@@ -228,6 +228,10 @@ Phase 10 addresses two critical production blockers:
 1. Dashboard HTMX forms broken (write ops return 401 — session cookie lacks X-API-Key header)
 2. No enterprise authentication (only API key login)
 
+### Stage 10.2 — LDAP Auth Module (DONE)
+- Created `netscan/auth/__init__.py` (empty package init)
+- Created `netscan/auth/ldap.py` with `ldap_authenticate()` (service account bind → user search → credential verify → group fetch) and `map_groups_to_role()` (hardcoded: netscan-admins→ADMIN, netscan-operators→OPERATOR, default→READ_ONLY)
+
 ### Stage 10.1 — Config & Dependencies (DONE)
 - `netscan/config.py`: 12 LDAP settings added (LDAP_ENABLED, LDAP_SERVER_URI, LDAP_BIND_DN, LDAP_BIND_PASSWORD, LDAP_USER_SEARCH_BASE, LDAP_USER_SEARCH_FILTER, LDAP_GROUP_SEARCH_BASE, LDAP_GROUP_SEARCH_FILTER, LDAP_START_TLS, LDAP_CA_CERT_FILE)
 - `pyproject.toml`: python-ldap>=3.4.0 added
