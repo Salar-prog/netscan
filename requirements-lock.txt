@@ -31,7 +31,7 @@ openai==2.44.0
 packaging==26.2
 pluggy==1.6.0
 protobuf==4.21.12
-pyasn1==0.6.1
+pyasn1==0.6.4
 pyasn1-modules==0.4.2
 pycriu==4.1.1
 pydantic==2.13.4
