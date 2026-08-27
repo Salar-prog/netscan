@@ -2,6 +2,7 @@ import os
 
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("RATE_LIMIT_DEFAULT", "10000/minute")
+os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 import pytest
 from fastapi.testclient import TestClient
