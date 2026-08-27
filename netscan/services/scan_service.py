@@ -27,6 +27,7 @@ def _track_webhook_task(task: asyncio.Task) -> None:
     if task.exception():
         logger.error("Webhook task failed: %s", task.exception())
 
+
 logger = logging.getLogger(__name__)
 
 
