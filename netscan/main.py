@@ -3,6 +3,7 @@ import logging
 import logging.config
 import shutil
 import time
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,15 @@ from netscan.services.scheduler_service import scheduler
 
 
 access_logger = logging.getLogger("netscan.access")
+
+
+class CorrelationIdMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
 
 class AccessLogMiddleware(BaseHTTPMiddleware):
@@ -39,6 +49,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             "status_code": response.status_code,
             "duration_ms": duration_ms,
             "client_ip": client_ip,
+            "request_id": getattr(request.state, "request_id", "-"),
         }
 
         if response.status_code >= 500:
@@ -125,6 +136,14 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Stopping NetScan scheduler...")
     scheduler.shutdown()
+    from netscan.services.scan_service import _webhook_tasks
+
+    if _webhook_tasks:
+        logger.info("Draining %d in-flight webhook tasks...", len(_webhook_tasks))
+        import asyncio
+
+        await asyncio.gather(*_webhook_tasks, return_exceptions=True)
+        logger.info("All webhook tasks drained.")
 
 
 def create_app(dashboard: bool = True) -> FastAPI:
@@ -152,6 +171,7 @@ def create_app(dashboard: bool = True) -> FastAPI:
 
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(AccessLogMiddleware)
+    app.add_middleware(CorrelationIdMiddleware)
 
     from netscan.api.idempotency import IdempotencyKeyMiddleware
 
