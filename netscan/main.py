@@ -149,6 +149,10 @@ def create_app(dashboard: bool = True) -> FastAPI:
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(AccessLogMiddleware)
 
+    from netscan.api.idempotency import IdempotencyKeyMiddleware
+
+    app.add_middleware(IdempotencyKeyMiddleware)
+
     # Mount API router (always loaded)
     app.include_router(api_v1_router)
 
