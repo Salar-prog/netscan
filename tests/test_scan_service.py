@@ -184,3 +184,82 @@ async def test_second_scan_updates_existing_records_and_audits_state_change(db_e
         for evt in change_events:
             assert evt.old_status == IPStatus.ACTIVE_DETECTED.value
             assert evt.new_status == IPStatus.UNCERTAIN_FIREWALLED.value
+
+
+async def test_recover_stale_running_job(db_engine):
+    from datetime import datetime, timedelta, timezone
+    from netscan.services.scan_service import recover_stale_scan_jobs
+
+    subnet_id = create_subnet(db_engine)
+    with Session(db_engine) as session:
+        job = ScanJob(
+            subnet_id=subnet_id,
+            status=ScanStatus.RUNNING,
+            triggered_by=TriggerType.MANUAL_API,
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=20),
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+
+    with Session(db_engine) as session:
+        recovered = recover_stale_scan_jobs(session, max_age_seconds=600)
+
+    assert recovered == 1
+    with Session(db_engine) as session:
+        refreshed = session.get(ScanJob, job_id)
+        assert refreshed.status == ScanStatus.FAILED
+        assert "Recovered by startup" in refreshed.error_message
+
+
+async def test_recover_stale_queued_job(db_engine):
+    from datetime import datetime, timedelta, timezone
+    from netscan.services.scan_service import recover_stale_scan_jobs
+
+    subnet_id = create_subnet(db_engine)
+    with Session(db_engine) as session:
+        job = ScanJob(
+            subnet_id=subnet_id,
+            status=ScanStatus.QUEUED,
+            triggered_by=TriggerType.SCHEDULE,
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=15),
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+
+    with Session(db_engine) as session:
+        recovered = recover_stale_scan_jobs(session, max_age_seconds=600)
+
+    assert recovered == 1
+    with Session(db_engine) as session:
+        refreshed = session.get(ScanJob, job_id)
+        assert refreshed.status == ScanStatus.FAILED
+
+
+async def test_recover_fresh_running_job_not_touched(db_engine):
+    from datetime import datetime, timedelta, timezone
+    from netscan.services.scan_service import recover_stale_scan_jobs
+
+    subnet_id = create_subnet(db_engine)
+    with Session(db_engine) as session:
+        job = ScanJob(
+            subnet_id=subnet_id,
+            status=ScanStatus.RUNNING,
+            triggered_by=TriggerType.MANUAL_API,
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+
+    with Session(db_engine) as session:
+        recovered = recover_stale_scan_jobs(session, max_age_seconds=600)
+
+    assert recovered == 0
+    with Session(db_engine) as session:
+        refreshed = session.get(ScanJob, job_id)
+        assert refreshed.status == ScanStatus.RUNNING

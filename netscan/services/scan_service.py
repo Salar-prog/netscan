@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from sqlmodel import Session, select
 from netscan.db import engine
@@ -20,6 +20,31 @@ from netscan.scanner.runner import NmapScanner
 from netscan.services.webhook_service import WebhookDispatcher
 
 logger = logging.getLogger(__name__)
+
+
+def recover_stale_scan_jobs(session: Session, max_age_seconds: int = 600) -> int:
+    """Mark QUEUED/RUNNING scan jobs older than max_age_seconds as FAILED.
+
+    Returns the number of jobs recovered.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
+    stale = session.exec(
+        select(ScanJob).where(
+            ScanJob.status.in_([ScanStatus.QUEUED, ScanStatus.RUNNING]),
+            ScanJob.created_at < cutoff,
+        )
+    ).all()
+    count = 0
+    for job in stale:
+        job.status = ScanStatus.FAILED
+        job.error_message = "Recovered by startup: job stuck"
+        job.completed_at = datetime.now(timezone.utc)
+        session.add(job)
+        count += 1
+    if count:
+        session.commit()
+        logger.warning("Recovered %d stale scan job(s)", count)
+    return count
 
 
 class ScanService:

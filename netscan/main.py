@@ -108,6 +108,12 @@ async def lifespan(app: FastAPI):
         alembic_command.upgrade(alembic_cfg, "head")
     except Exception as e:
         logger.warning(f"Alembic migration skipped: {e}")
+    logger.info("Recovering stale scan jobs...")
+    from sqlmodel import Session as _Session
+    from netscan.services.scan_service import recover_stale_scan_jobs
+
+    with _Session(engine) as _session:
+        recover_stale_scan_jobs(_session)
     logger.info("Starting NetScan scheduler...")
     scheduler.start()
     yield
