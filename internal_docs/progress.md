@@ -334,6 +334,24 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 
 ---
 
+## P2 Production Hardening (COMPLETE)
+
+**Status:** DONE — PR #27 merged, all CI green
+**PR:** #27 (feat/p2-hardening, merged to main)
+
+| Stage | Item | Status | Notes |
+|-------|------|--------|-------|
+| S1 | F5: Shared SSRF validation | Done | `netscan/webhooks_check.py` with `is_url_blocked()`; both API + dashboard paths use it |
+| S2 | F6+F7: LDAP injection + async safety | Done | `escape_filter_chars()` on username; `asyncio.to_thread()` wrapper; `OPT_NETWORK_TIMEOUT=10` |
+| S3 | F8: Secure cookie flag | Done | `secure=not settings.DEBUG` on both `set_cookie` calls in `views.py` |
+| S4 | F10: Throttle last_used_at | Done | Only commits if >1 hour since last update; handles naive/aware datetime comparison |
+| S5 | F11+F12: Webhook task tracking | Done | `_webhook_tasks` set with done-callbacks; `dispatch_event_to()` for single-webhook delivery |
+| S6 | F16+F17: Scanner warning + count cap | Done | WARNING log for unprivileged scanner; dashboard count capped at 50 |
+| S7 | F27: python-ldap optional | Done | Moved to `[project.optional-dependencies] ldap`; Docker/CI include it; CLI checks for it |
+| S8 | F26: Document TOCTOU | Done | Docstring on `check_active_scan()` noting accepted risk under single-instance constraint |
+
+---
+
 ## Summary
 
 | Phase | Status | Tests |
@@ -350,3 +368,4 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | Phase 10 | COMPLETE | 115/115 pass |
 | Restructure | COMPLETE | v0.1.0 released, CI + Publish green |
 | P0+P1 Hardening | COMPLETE | 131/131 pass, PR #26 merged |
+| P2 Hardening | COMPLETE | 132/132 pass, PR #27 merged |

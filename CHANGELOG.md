@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shared SSRF validation** — single `is_url_blocked()` function in `webhooks_check.py` protects both API and dashboard webhook creation
+- **LDAP injection fix** — username escaped with `ldap.filter.escape_filter_chars()` before LDAP bind
+- **Async LDAP** — `ldap_authenticate()` wrapped in `asyncio.to_thread()` to avoid blocking the event loop; 10s network timeout
+- **Webhook task tracking** — outbound webhook tasks tracked with done-callbacks that log exceptions on failure
+- **Targeted webhook test dispatch** — dashboard "Test" button sends to specific webhook, not broadcast
+- **Scanner unprivileged warning** — logs WARNING when running without raw socket capabilities
+- **python-ldap optional** — moved to `[project.optional-dependencies] ldap`; install with `pip install netscan[ldap]`
+
+### Fixed
+
+- **Secure cookie flag** — session cookies set `secure=True` when `DEBUG=false`
+- **Throttled last_used_at** — API key `last_used_at` only written once per hour (reduces write contention)
+- **Dashboard count cap** — `/web/ips/available` count parameter capped at 50
+
+### Changed
+
+- `python-ldap` no longer a hard dependency — install with `netscan[ldap]` for LDAP support
+- TOCTOU race in `check_active_scan()` documented as accepted risk under single-instance constraint
+
+### Added
+
 - **Structured error responses** — all API errors return `{error_code, message, details}` envelope with machine-parseable codes (`INVALID_CIDR`, `SUBNET_EXISTS`, `SCAN_ALREADY_RUNNING`, `SSRF_BLOCKED`, etc.)
 - **Idempotency keys** — `Idempotency-Key` header on POST/PUT/PATCH/DELETE prevents duplicate writes for 24 hours
 - **Stale scan job recovery** — QUEUED/RUNNING jobs older than 10 minutes are automatically marked FAILED on startup
