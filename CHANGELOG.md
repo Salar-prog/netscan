@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Structured error responses** — all API errors return `{error_code, message, details}` envelope with machine-parseable codes (`INVALID_CIDR`, `SUBNET_EXISTS`, `SCAN_ALREADY_RUNNING`, `SSRF_BLOCKED`, etc.)
+- **Idempotency keys** — `Idempotency-Key` header on POST/PUT/PATCH/DELETE prevents duplicate writes for 24 hours
+- **Stale scan job recovery** — QUEUED/RUNNING jobs older than 10 minutes are automatically marked FAILED on startup
+- **Concurrent scan guard** — `check_active_scan()` shared across API, scheduler, and executor prevents overlapping scans per subnet
+- **Configurable rate limit** — `RATE_LIMIT_DEFAULT` setting (default `120/minute`)
+- **CORS lock** — `ALLOWED_ORIGINS` defaults to empty (no origins); CORS middleware skipped when unconfigured
+- **Subnets pagination** — `list_subnets` accepts `limit`/`offset` params (consistent with IPs endpoint)
+- **Webhook event_id** — UUID in every webhook payload for consumer-side deduplication
+
+### Fixed
+
+- **Docker healthcheck** — removed `create_all()` / Alembic double-CREATE TABLE conflict; Alembic owns schema exclusively
+- **In-memory SQLite test isolation** — Alembic receives module-level engine via `config.attributes["connectable"]`, ensuring tests and lifespan share the same connection
+
+### Changed
+
+- `ALLOWED_ORIGINS` default changed from `*` to `""` (empty). Set explicitly to enable CORS.
+- Alembic migration failure on startup is now **fatal** (no silent swallow)
+- SlowAPI rate limiting wired into ASGI middleware (was inert before)
+
+### Dependencies
+
+- Bumped: pygments 2.20→2.21, typing-extensions 4.15→4.16, hypothesis 6.155→6.165, uvicorn 0.49→0.52, starlette 1.3→1.6
+- Bumped: docker/login-action 3→4, docker/metadata-action 5→6, docker/build-push-action 6→7, docker/setup-buildx-action 3→4
+
 ## [0.1.0] - 2026-08-25
 
 ### Added

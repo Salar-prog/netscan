@@ -36,10 +36,12 @@ The dashboard is the main interface. Everything you need is one click away.
 - **Safe quarantine model** — "ping failed" never means "free to use"
 - **Multi-probe engine** — ARP, ICMP, TCP SYN with auto-detection and fallback
 - **HTMX dashboard** — no Node.js, no build step, server-rendered
+- **Structured error responses** — machine-parseable `{error_code, message, details}` envelope
+- **Idempotency keys** — `Idempotency-Key` header prevents duplicate writes
 - **Outbound webhooks** — HMAC-SHA256 signed, with retry and exponential backoff
 - **In-process scheduler** — background scans, zero external deps
 - **LDAP/AD auth** — corporate credentials for dashboard, API keys for scripts
-- **Rate limiting** — global 120 req/min via slowapi
+- **Rate limiting** — configurable per-IP limit via slowapi
 - **Structured logging** — JSON or text, configurable level
 
 ## Configuration
@@ -51,7 +53,8 @@ Environment variables or `.env` file:
 | `DEBUG` | `false` | Debug logging, relaxed security |
 | `SECRET_KEY` | *(empty)* | **Required in production.** Session signing. |
 | `DATABASE_URL` | `sqlite:///./netscan.db` | Database URL |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
+| `ALLOWED_ORIGINS` | *(empty)* | Comma-separated CORS origins (empty = no CORS) |
+| `RATE_LIMIT_DEFAULT` | `120/minute` | Global rate limit per IP |
 | `DEFAULT_SCAN_INTERVAL_MINUTES` | `60` | Scan interval per subnet |
 | `DEFAULT_MISS_THRESHOLD` | `3` | Consecutive misses before uncertain |
 | `DEFAULT_QUARANTINE_HOURS` | `48` | Cooldown before uncertain → available |

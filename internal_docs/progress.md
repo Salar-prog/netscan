@@ -308,6 +308,32 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 
 ---
 
+## P0+P1 Production Hardening (COMPLETE)
+
+**Status:** DONE — PR #26 merged, all CI green
+**PR:** #26 (feat/p0-p1-hardening, merged to main)
+
+| Stage | Item | Status | Notes |
+|-------|------|--------|-------|
+| S1 | P0-1: Wire SlowAPIMiddleware | Done | `RATE_LIMIT_DEFAULT` setting (120/min), conftest high ceiling (10000/min), `test_rate_limit.py` |
+| S2 | P0-4: Per-connection SQLite pragmas | Done | `@event.listens_for(engine, "connect")` for busy_timeout=5000 + WAL; removed one-shot `create_all` block; `test_db.py` |
+| S3 | P0-2: Stale scan job recovery | Done | `recover_stale_scan_jobs()` in lifespan; marks QUEUED/RUNNING >10min old → FAILED; 3 tests |
+| S4 | P0-3: Docker Alembic migration | Done | Dockerfile copies `alembic.ini` + `alembic/`; migration failure now **fatal**; `DATABASE_URL=sqlite://` in conftest |
+| S5 | P0-5: Concurrent scan guard | Done | `check_active_scan()` shared across API (409), scheduler (skip+log), executor (mark FAILED); tests in `test_scan_service.py` + `test_scheduler_service.py` |
+| S6 | P1-6: Structured error envelope | Done | `NetScanException` in `netscan/api/errors.py` with `error_code`, `message`, `details`; all routes converted; `test_error_envelope.py` |
+| S7 | P1-7: Idempotency key middleware | Done | `IdempotencyKeyMiddleware` intercepts `Idempotency-Key` header on POST/PUT/PATCH/DELETE; `IdempotencyRecord` model + Alembic migration; `test_idempotency.py` |
+| S8 | P1-8: Subnets pagination | Done | `list_subnets` accepts `limit`/`offset` params (consistent with IPs endpoint) |
+| S9 | P1-9: Webhook event_id | Done | `event_id` (UUID) added to webhook payloads for consumer deduplication |
+| S10 | P1-10: CORS lock | Done | `ALLOWED_ORIGINS` defaults to empty; CORS middleware skipped when unconfigured |
+
+### Post-merge fix
+
+- Removed `create_all()` from `init_db()` — Alembic owns schema exclusively
+- Modified `alembic/env.py` to accept `config.attributes["connectable"]` — passes module-level engine to Alembic for in-memory SQLite test isolation
+- Fixed Docker CI healthcheck (double CREATE TABLE) and test suite (isolated in-memory DBs)
+
+---
+
 ## Summary
 
 | Phase | Status | Tests |
@@ -323,3 +349,4 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | Phase 9 | COMPLETE | 93/93 pass |
 | Phase 10 | COMPLETE | 115/115 pass |
 | Restructure | COMPLETE | v0.1.0 released, CI + Publish green |
+| P0+P1 Hardening | COMPLETE | 131/131 pass, PR #26 merged |

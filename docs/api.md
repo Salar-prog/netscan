@@ -141,17 +141,65 @@ Response includes `secret` — store it for HMAC signature verification.
 
 ## Rate Limiting
 
-Global: 120 requests/minute per IP. `/health` is exempt.
+Global rate limit per IP. Default: `120/minute`. Configurable via `RATE_LIMIT_DEFAULT`.
+`/health` is exempt.
 
 ---
 
 ## Error Responses
 
-| Status | Meaning |
-|--------|---------|
-| `401` | Missing or invalid API key |
-| `403` | Valid key but insufficient role |
-| `404` | Resource not found |
-| `409` | Conflict (e.g. scan already running) |
-| `422` | Validation error (check response body) |
-| `429` | Rate limit exceeded |
+All errors return a structured JSON envelope:
+
+```json
+{
+  "error_code": "SUBNET_NOT_FOUND",
+  "message": "Subnet not found",
+  "details": {}
+}
+```
+
+| Status | Error Code | Meaning |
+|--------|-----------|---------|
+| `400` | `INVALID_CIDR` | Malformed or oversized CIDR (max /24) |
+| `400` | `SSRF_BLOCKED` | Webhook URL targets private/metadata IP |
+| `401` | *(missing)* | Missing or invalid API key |
+| `403` | *(missing)* | Valid key but insufficient role |
+| `404` | `SUBNET_NOT_FOUND` | Subnet does not exist |
+| `404` | `IP_NOT_FOUND` | IP does not exist |
+| `404` | `SCAN_NOT_FOUND` | Scan job does not exist |
+| `404` | `WEBHOOK_NOT_FOUND` | Webhook does not exist |
+| `409` | `SUBNET_EXISTS` | CIDR already registered |
+| `409` | `SCAN_ALREADY_RUNNING` | Active scan exists for this subnet |
+| `409` | `BOOTSTRAP_RACE` | Two bootstrap requests raced; retry |
+| `422` | *(validation)* | Pydantic validation error (check `detail`) |
+| `429` | *(missing)* | Rate limit exceeded |
+| `500` | `BOOTSTRAP_DISABLED` | First API key already exists |
+
+---
+
+## Idempotency
+
+POST, PUT, PATCH, and DELETE endpoints support idempotent retries via the `Idempotency-Key` header:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/subnets \
+  -H "X-API-Key: <key>" \
+  -H "Idempotency-Key: my-unique-request-id" \
+  -H "Content-Type: application/json" \
+  -d '{"cidr": "10.0.0.0/24", "name": "test"}'
+```
+
+- Keys are scoped to the HTTP method + path + request body.
+- Cached responses are returned for **24 hours**.
+- Without the header, requests are not idempotent.
+
+---
+
+## Pagination
+
+List endpoints (`GET /subnets`, `GET /ips`, `GET /scans`) support `limit` and `offset` query parameters:
+
+```bash
+curl -H "X-API-Key: <key>" \
+  "http://localhost:8000/api/v1/subnets?limit=10&offset=20"
+```

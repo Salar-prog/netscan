@@ -55,12 +55,16 @@ Tests use an in-memory SQLite database -- no nmap or API keys required.
 netscan/
   api/v1/          # REST API endpoints
   api/auth.py      # API key authentication
+  api/errors.py    # Structured error handler (NetScanException)
+  api/idempotency.py  # Idempotency key middleware
   auth/            # LDAP/AD authentication (bind + group→role mapping)
   scanner/         # Nmap runner, CIDR utils, classifier
   services/        # Scan orchestration, scheduler, webhook dispatcher
   web/             # HTMX dashboard, templates, session cookies, /web/* proxy routes
   config.py        # Settings via pydantic-settings
   models.py        # SQLModel schemas
+  db.py            # Engine + SQLite WAL/busy_timeout
+  limiter.py       # SlowAPI rate limiter
   main.py          # FastAPI app factory, lifespan, middleware
   cli.py           # netscan serve / netscan login
 tests/             # Test suite (pytest)
