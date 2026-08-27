@@ -9,11 +9,11 @@ NetScan scans your subnets, tracks what's alive, and won't free an IP just becau
 ## Quick Start
 
 ```bash
-pip install -e .
+pip install -e ".[test,ldap]"
 netscan serve
 ```
 
-> Building from source needs `libldap2-dev` and `libsasl2-dev` system headers (see [Development](#development)). The Docker image has no such requirement.
+> Building from source needs `libldap2-dev` and `libsasl2-dev` system headers (see [Development](#development)). The Docker image has no such requirement. Install without `.[ldap]` if you don't need LDAP/AD authentication.
 
 Dashboard at `http://localhost:8000/`. Swagger at `/docs`.
 
@@ -141,13 +141,13 @@ Full REST API with OpenAPI docs. [API Reference →](docs/api.md)
 ## Development
 
 ```bash
-pip install -e ".[test]"
+pip install -e ".[test,ldap]"
 pytest -v
 ruff check netscan/
 ruff format --check netscan/
 ```
 
-`python-ldap` needs system headers to compile: `sudo apt install libldap2-dev libsasl2-dev` (Debian/Ubuntu) before installing.
+`python-ldap` needs system headers to compile: `sudo apt install libldap2-dev libsasl2-dev` (Debian/Ubuntu) before installing. If you don't need LDAP, install with `pip install -e ".[test]"` instead.
 
 Tests use in-memory SQLite. No nmap or API keys needed. CI runs on every push and PR.
 

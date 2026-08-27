@@ -18,8 +18,10 @@ Thanks for your interest in contributing. Here's how to get started.
 
 3. Install in editable mode with test dependencies:
    ```bash
-   pip install -e ".[test]"
+   pip install -e ".[test,ldap]"
    ```
+
+   If you don't need LDAP, install without it: `pip install -e ".[test]"`
 
 4. Install nmap (required for the scanner):
    ```bash
