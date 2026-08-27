@@ -10,3 +10,4 @@ __pycache__/
 .venv/
 dist/
 build/
+docs/PRODUCTION_READINESS.md
