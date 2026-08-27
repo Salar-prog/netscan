@@ -56,7 +56,13 @@ def recover_stale_scan_jobs(session: Session, max_age_seconds: int = 600) -> int
 
 
 def check_active_scan(session: Session, subnet_id: uuid.UUID) -> ScanJob | None:
-    """Return the active ScanJob for a subnet, or None if no scan is in progress."""
+    """Return the active ScanJob for a subnet, or None if no scan is in progress.
+
+    Note: This has a TOCTOU race window (check-then-insert is not atomic).
+    Under the single-instance constraint documented in PRODUCTION_READINESS.md,
+    this is acceptable. A unique partial index on (subnet_id, status) would be
+    the proper fix for multi-instance deployments, but requires PostgreSQL.
+    """
     return session.exec(
         select(ScanJob).where(
             ScanJob.subnet_id == subnet_id,
