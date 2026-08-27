@@ -37,14 +37,14 @@ class TestMapGroupsToRole:
 
 
 class TestLdapAuthenticate:
-    def test_returns_none_when_disabled(self):
+    async def test_returns_none_when_disabled(self):
         from netscan.auth.ldap import ldap_authenticate
 
         with patch("netscan.auth.ldap.settings") as mock_settings:
             mock_settings.LDAP_ENABLED = False
-            assert ldap_authenticate("user", "pass") is None
+            assert await ldap_authenticate("user", "pass") is None
 
-    def test_returns_none_when_ldap_not_installed(self):
+    async def test_returns_none_when_ldap_not_installed(self):
         from netscan.auth.ldap import ldap_authenticate as _auth  # noqa: F401
 
         with patch("netscan.auth.ldap.settings") as mock_settings:
@@ -58,7 +58,7 @@ class TestLdapAuthenticate:
                     del sys.modules["netscan.auth.ldap"]
                 from netscan.auth.ldap import ldap_authenticate as auth_fn
 
-                assert auth_fn("user", "pass") is None
+                assert await auth_fn("user", "pass") is None
             finally:
                 if saved is not None:
                     sys.modules["ldap"] = saved

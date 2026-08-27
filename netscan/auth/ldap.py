@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -21,13 +22,11 @@ def map_groups_to_role(groups: List[str]) -> Role:
     return Role.READ_ONLY
 
 
-def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
-    """Bind to LDAP with service account, verify user credentials, return info or None."""
-    if not settings.LDAP_ENABLED:
-        return None
-
+def _ldap_authenticate_sync(username: str, password: str) -> Optional[Dict[str, Any]]:
+    """Synchronous LDAP authentication. Called via asyncio.to_thread to avoid blocking."""
     try:
         import ldap
+        from ldap.filter import escape_filter_chars
     except ImportError:
         logger.error("python-ldap is not installed. Install it with: pip install python-ldap")
         return None
@@ -36,6 +35,7 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
     try:
         conn = ldap.initialize(settings.LDAP_SERVER_URI)
         conn.set_option(ldap.OPT_REFERRALS, 0)
+        conn.set_option(ldap.OPT_NETWORK_TIMEOUT, 10)
 
         if settings.LDAP_START_TLS:
             conn.start_tls_s()
@@ -45,7 +45,8 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
 
         conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
 
-        search_filter = settings.LDAP_USER_SEARCH_FILTER.format(username=username)
+        safe_username = escape_filter_chars(username)
+        search_filter = settings.LDAP_USER_SEARCH_FILTER.format(username=safe_username)
         results = conn.search_s(settings.LDAP_USER_SEARCH_BASE, ldap.SCOPE_SUBTREE, search_filter, ["dn"])
         if not results:
             logger.warning("LDAP user not found: %s", username)
@@ -56,6 +57,7 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
         try:
             user_conn = ldap.initialize(settings.LDAP_SERVER_URI)
             user_conn.set_option(ldap.OPT_REFERRALS, 0)
+            user_conn.set_option(ldap.OPT_NETWORK_TIMEOUT, 10)
             if settings.LDAP_START_TLS:
                 user_conn.start_tls_s()
             user_conn.simple_bind_s(user_dn, password)
@@ -88,3 +90,10 @@ def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
                 conn.unbind_s()
             except Exception:
                 pass
+
+
+async def ldap_authenticate(username: str, password: str) -> Optional[Dict[str, Any]]:
+    """Async LDAP authentication. Offloads sync I/O to a thread."""
+    if not settings.LDAP_ENABLED:
+        return None
+    return await asyncio.to_thread(_ldap_authenticate_sync, username, password)
