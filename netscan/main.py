@@ -125,10 +125,12 @@ def create_app(dashboard: bool = True) -> FastAPI:
     Args:
         dashboard: If True, include the web dashboard routes.
     """
+    from importlib.metadata import version
+
     app = FastAPI(
         title="NetScan API",
         description="Production-Grade IP Discovery and Availability Platform",
-        version="0.1.0",
+        version=version("netscan"),
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",

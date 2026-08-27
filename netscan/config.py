@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Dashboard session cookie (defaults to SECRET_KEY)
     SESSION_SECRET_KEY: str = ""
 
+    # Bootstrap kill-switch: set to true to disable the HTTP bootstrap endpoint
+    DISABLE_BOOTSTRAP: bool = False
+
     # LDAP / Active Directory
     LDAP_ENABLED: bool = False
     LDAP_SERVER_URI: str = ""

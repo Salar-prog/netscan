@@ -100,6 +100,7 @@ class NmapScanner:
             )
         except asyncio.TimeoutError:
             process.kill()
+            await process.wait()
             raise TimeoutError(f"Nmap scan timed out after {settings.NMAP_TIMEOUT_SECONDS} seconds for {cidr}")
 
         if process.returncode != 0 and not stdout:

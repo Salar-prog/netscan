@@ -70,6 +70,14 @@ def bootstrap_first_key(
     session: Session = Depends(get_session),
 ):
     """Create the first API key when no keys exist. Disabled once any key exists."""
+    from netscan.config import settings
+
+    if settings.DISABLE_BOOTSTRAP:
+        raise NetScanException(
+            "BOOTSTRAP_DISABLED",
+            "Bootstrap endpoint is disabled. Set DISABLE_BOOTSTRAP=false to enable.",
+            status_code=403,
+        )
     existing = session.exec(select(ApiKey)).first()
     if existing:
         raise NetScanException(
