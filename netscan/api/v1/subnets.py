@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, status
@@ -110,6 +111,24 @@ def create_subnet(
     existing = session.exec(select(Subnet).where(Subnet.cidr == norm_cidr)).first()
     if existing:
         raise NetScanException("SUBNET_EXISTS", f"Subnet '{norm_cidr}' already exists.", status_code=400)
+
+    # Check for overlapping subnets
+    new_net = ipaddress.IPv4Network(norm_cidr, strict=False)
+    all_subnets = session.exec(select(Subnet)).all()
+    overlaps = []
+    for s in all_subnets:
+        try:
+            existing_net = ipaddress.IPv4Network(s.cidr, strict=False)
+            if new_net.overlaps(existing_net) and new_net != existing_net:
+                overlaps.append(s.cidr)
+        except ValueError:
+            continue
+    if overlaps:
+        raise NetScanException(
+            "SUBNET_OVERLAPS",
+            f"CIDR '{norm_cidr}' overlaps with existing subnets: {', '.join(overlaps)}",
+            status_code=400,
+        )
 
     subnet = Subnet(
         cidr=norm_cidr,

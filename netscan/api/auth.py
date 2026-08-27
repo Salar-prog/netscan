@@ -50,7 +50,9 @@ async def get_current_api_key(
         )
 
     hashed = hash_key(header_key)
-    key_rec = session.exec(select(ApiKey).where(ApiKey.key_hash == hashed, ApiKey.is_active)).first()
+    key_rec = session.exec(
+        select(ApiKey).where(ApiKey.key_hash == hashed, ApiKey.is_active, ApiKey.revoked_at.is_(None))
+    ).first()
 
     if not key_rec:
         raise HTTPException(

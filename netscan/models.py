@@ -160,6 +160,7 @@ class ApiKey(SQLModel, table=True):
     role: Role = Field(default=Role.OPERATOR)
     is_active: bool = Field(default=True)
     expires_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
     last_used_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utc_now)
 

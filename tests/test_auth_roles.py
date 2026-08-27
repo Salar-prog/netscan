@@ -110,6 +110,8 @@ def test_list_keys_does_not_expose_key_hash(make_key_headers):
         "prefix",
         "role",
         "is_active",
+        "expires_at",
+        "revoked_at",
         "last_used_at",
         "created_at",
     }

@@ -19,12 +19,20 @@ class ApiKeyCreate(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+class ApiKeyUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[Role] = None
+    expires_at: Optional[datetime] = None
+
+
 class ApiKeyResponse(BaseModel):
     id: uuid.UUID
     name: str
     prefix: str
     role: Role
     is_active: bool
+    expires_at: Optional[datetime]
+    revoked_at: Optional[datetime]
     last_used_at: Optional[datetime]
     created_at: datetime
 
@@ -125,6 +133,32 @@ def revoke_key(
     rec = session.get(ApiKey, key_id)
     if not rec:
         raise NetScanException("API_KEY_NOT_FOUND", "API Key not found", status_code=404)
-    session.delete(rec)
+    from netscan.models import utc_now
+
+    rec.is_active = False
+    rec.revoked_at = utc_now()
+    session.add(rec)
     session.commit()
     return None
+
+
+@router.patch("/{key_id}", response_model=ApiKeyResponse)
+def update_key(
+    key_id: uuid.UUID,
+    payload: ApiKeyUpdate,
+    session: Session = Depends(get_session),
+    current_user=Depends(require_role(Role.ADMIN)),
+):
+    rec = session.get(ApiKey, key_id)
+    if not rec:
+        raise NetScanException("API_KEY_NOT_FOUND", "API Key not found", status_code=404)
+    if payload.name is not None:
+        rec.name = payload.name
+    if payload.role is not None:
+        rec.role = payload.role
+    if payload.expires_at is not None:
+        rec.expires_at = payload.expires_at
+    session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
