@@ -114,6 +114,12 @@ async def lifespan(app: FastAPI):
 
     with _Session(engine) as _session:
         recover_stale_scan_jobs(_session)
+    if settings.RETENTION_DAYS > 0:
+        logger.info("Pruning records older than %d days...", settings.RETENTION_DAYS)
+        from netscan.services.retention import prune_old_records
+
+        with _Session(engine) as _session:
+            prune_old_records(_session, settings.RETENTION_DAYS)
     logger.info("Starting NetScan scheduler...")
     scheduler.start()
     yield
@@ -196,6 +202,34 @@ def create_app(dashboard: bool = True) -> FastAPI:
             status_code = "degraded"
 
         return {"status": status_code, "service": "NetScan", "version": version("netscan"), "checks": checks}
+
+    @app.get("/metrics", tags=["System"])
+    @limiter.exempt
+    def metrics(request: Request):
+        from sqlmodel import select, func
+        from netscan.models import Subnet, IPAddress, IPStatus, ScanJob, ScanStatus
+
+        with engine.connect() as conn:
+            subnets = conn.execute(select(func.count()).select_from(Subnet)).scalar() or 0
+            total_ips = conn.execute(select(func.count()).select_from(IPAddress)).scalar() or 0
+            active_ips = conn.execute(
+                select(func.count()).select_from(IPAddress).where(IPAddress.status == IPStatus.ACTIVE_DETECTED)
+            ).scalar() or 0
+            scans_completed = conn.execute(
+                select(func.count()).select_from(ScanJob).where(ScanJob.status == ScanStatus.COMPLETED)
+            ).scalar() or 0
+            scans_failed = conn.execute(
+                select(func.count()).select_from(ScanJob).where(ScanJob.status == ScanStatus.FAILED)
+            ).scalar() or 0
+
+        lines = [
+            f'netscan_subnets_total {subnets}',
+            f'netscan_ips_total {total_ips}',
+            f'netscan_ips_active {active_ips}',
+            f'netscan_scans_completed_total {scans_completed}',
+            f'netscan_scans_failed_total {scans_failed}',
+        ]
+        return "\n".join(lines) + "\n"
 
     return app
 

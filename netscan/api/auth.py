@@ -58,6 +58,12 @@ async def get_current_api_key(
             detail="Invalid or revoked API Key.",
         )
 
+    if key_rec.expires_at and key_rec.expires_at.replace(tzinfo=timezone.utc) < utc_now():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API Key has expired.",
+        )
+
     now = utc_now()
     if not key_rec.last_used_at or (now - key_rec.last_used_at.replace(tzinfo=timezone.utc)).total_seconds() > 3600:
         key_rec.last_used_at = now

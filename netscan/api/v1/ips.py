@@ -109,12 +109,15 @@ def get_available_ips(
 @router.get("/{ip_address}")
 def get_ip_detail(
     ip_address: str,
+    subnet_id: Optional[uuid.UUID] = None,
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),
 ):
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
     if not rec:
         raise NetScanException("IP_NOT_FOUND", f"IP '{ip_address}' not tracked yet.", status_code=404)
+    if subnet_id and rec.subnet_id != subnet_id:
+        raise NetScanException("IP_NOT_FOUND", f"IP '{ip_address}' not in subnet {subnet_id}.", status_code=404)
     return rec
 
 

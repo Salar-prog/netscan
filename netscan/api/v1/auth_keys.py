@@ -16,6 +16,7 @@ router = APIRouter(prefix="/auth/keys", tags=["API Keys"])
 class ApiKeyCreate(BaseModel):
     name: str
     role: Role = Role.OPERATOR
+    expires_at: Optional[datetime] = None
 
 
 class ApiKeyResponse(BaseModel):
@@ -49,6 +50,7 @@ def create_api_key(
         prefix=prefix,
         role=payload.role,
         is_active=True,
+        expires_at=payload.expires_at,
     )
     session.add(api_key_rec)
     session.commit()

@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Bootstrap kill-switch: set to true to disable the HTTP bootstrap endpoint
     DISABLE_BOOTSTRAP: bool = False
 
+    # Retention: days to keep ip_history and scan_jobs (0 = no pruning)
+    RETENTION_DAYS: int = 90
+
     # LDAP / Active Directory
     LDAP_ENABLED: bool = False
     LDAP_SERVER_URI: str = ""
