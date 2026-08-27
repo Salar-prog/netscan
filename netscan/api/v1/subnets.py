@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
@@ -36,10 +36,12 @@ class SubnetUpdate(BaseModel):
 
 @router.get("", response_model=List[Dict[str, Any]])
 def list_subnets(
+    limit: int = Query(default=50, le=200),
+    offset: int = 0,
     session: Session = Depends(get_session),
     current_user=Depends(get_current_api_key),
 ):
-    subnets = session.exec(select(Subnet)).all()
+    subnets = session.exec(select(Subnet).offset(offset).limit(limit)).all()
     results = []
     for s in subnets:
         # Calculate summary statistics for each subnet

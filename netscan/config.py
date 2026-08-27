@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_DEFAULT: str = "120/minute"
 
     # CORS
-    ALLOWED_ORIGINS: str = "*"
+    ALLOWED_ORIGINS: str = ""
 
     # Trusted Proxies (comma-separated IPs for X-Forwarded-For)
     TRUSTED_PROXIES: str = ""

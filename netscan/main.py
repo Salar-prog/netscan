@@ -139,19 +139,22 @@ def create_app(dashboard: bool = True) -> FastAPI:
 
     app.add_exception_handler(NetScanException, netscan_exception_handler)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(AccessLogMiddleware)
 
     from netscan.api.idempotency import IdempotencyKeyMiddleware
 
     app.add_middleware(IdempotencyKeyMiddleware)
+
+    allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # Mount API router (always loaded)
     app.include_router(api_v1_router)
