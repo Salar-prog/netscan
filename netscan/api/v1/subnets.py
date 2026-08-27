@@ -3,6 +3,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
 from netscan.api.errors import NetScanException
@@ -42,25 +43,32 @@ def list_subnets(
     current_user=Depends(get_current_api_key),
 ):
     subnets = session.exec(select(Subnet).offset(offset).limit(limit)).all()
+
+    # Aggregate IP counts in a single GROUP BY query instead of N+1
+    subnet_ids = [s.id for s in subnets]
+    counts: Dict[uuid.UUID, Dict[str, int]] = {sid: {"active": 0, "uncertain": 0, "reserved": 0} for sid in subnet_ids}
+    if subnet_ids:
+        rows = session.exec(
+            select(IPAddress.subnet_id, IPAddress.status, func.count())
+            .where(IPAddress.subnet_id.in_(subnet_ids))
+            .group_by(IPAddress.subnet_id, IPAddress.status)
+        ).all()
+        for subnet_id, ip_status, cnt in rows:
+            if subnet_id in counts:
+                if ip_status == IPStatus.ACTIVE_DETECTED:
+                    counts[subnet_id]["active"] = cnt
+                elif ip_status == IPStatus.UNCERTAIN_FIREWALLED:
+                    counts[subnet_id]["uncertain"] = cnt
+                elif ip_status == IPStatus.ASSIGNED_RESERVED:
+                    counts[subnet_id]["reserved"] = cnt
+
     results = []
     for s in subnets:
-        # Calculate summary statistics for each subnet
         total_ips = len(expand_cidr_hosts(s.cidr))
-        active_count = len(
-            session.exec(
-                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ACTIVE_DETECTED)
-            ).all()
-        )
-        uncertain_count = len(
-            session.exec(
-                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.UNCERTAIN_FIREWALLED)
-            ).all()
-        )
-        reserved_count = len(
-            session.exec(
-                select(IPAddress).where(IPAddress.subnet_id == s.id, IPAddress.status == IPStatus.ASSIGNED_RESERVED)
-            ).all()
-        )
+        c = counts[s.id]
+        active_count = c["active"]
+        uncertain_count = c["uncertain"]
+        reserved_count = c["reserved"]
         available_count = total_ips - (active_count + uncertain_count + reserved_count)
 
         meta = get_subnet_metadata(s.cidr)

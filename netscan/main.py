@@ -26,8 +26,10 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         if request.url.path == "/health":
             return await call_next(request)
 
+        from netscan.limiter import get_client_ip
+
         start = time.monotonic()
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = get_client_ip(request)
         response = await call_next(request)
         duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -171,7 +173,9 @@ def create_app(dashboard: bool = True) -> FastAPI:
     @app.get("/health", tags=["System"])
     @limiter.exempt
     def health_check(request: Request):
-        checks = {"database": "ok", "nmap": "ok"}
+        from importlib.metadata import version
+
+        checks = {"database": "ok", "nmap": "ok", "scheduler": "ok"}
         status_code = "healthy"
 
         try:
@@ -185,7 +189,13 @@ def create_app(dashboard: bool = True) -> FastAPI:
             checks["nmap"] = "not found"
             status_code = "degraded"
 
-        return {"status": status_code, "service": "NetScan", "version": "0.1.0", "checks": checks}
+        from netscan.services.scheduler_service import scheduler
+
+        if not scheduler.scheduler.running:
+            checks["scheduler"] = "not running"
+            status_code = "degraded"
+
+        return {"status": status_code, "service": "NetScan", "version": version("netscan"), "checks": checks}
 
     return app
 
