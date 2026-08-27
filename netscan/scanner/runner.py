@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import shutil
 import socket
@@ -8,6 +9,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from netscan.config import settings
 from netscan.models import DiscoveryMethod
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -41,6 +44,8 @@ class NmapScanner:
     def __init__(self):
         self.nmap_path = shutil.which("nmap")
         self.is_privileged = self._detect_raw_socket_privileges()
+        if not self.is_privileged:
+            logger.warning("Scanner running unprivileged: ARP/SYN/ICMP probes disabled, using TCP-connect only")
 
     @staticmethod
     def _detect_raw_socket_privileges() -> bool:

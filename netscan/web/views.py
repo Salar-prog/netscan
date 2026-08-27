@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -333,7 +333,7 @@ def provision_view(request: Request, session: Session = Depends(get_session)):
 @web_router.get("/web/ips/available", response_class=JSONResponse)
 def web_available_ips(
     subnet_id: str,
-    count: int = 1,
+    count: int = Query(default=1, le=50),
     request: Request = None,
     session: Session = Depends(get_session),
 ):
