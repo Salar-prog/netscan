@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md ./
 COPY netscan/ netscan/
 
-RUN pip wheel --no-cache-dir --wheel-dir /build/wheels .[test]
+RUN pip wheel --no-cache-dir --wheel-dir /build/wheels .[test,ldap]
 
 FROM python:3.12.8-slim AS runtime
 

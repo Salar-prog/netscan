@@ -30,6 +30,12 @@ def login():
         click.echo("LDAP is not enabled. Set LDAP_ENABLED=true in your .env file.")
         return
 
+    try:
+        import ldap  # noqa: F401
+    except ImportError:
+        click.echo("python-ldap is not installed. Install with: pip install netscan[ldap]")
+        return
+
     username = click.prompt("Username")
     password = click.prompt("Password", hide_input=True)
 

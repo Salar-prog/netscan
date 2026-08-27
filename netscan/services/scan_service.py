@@ -19,6 +19,15 @@ from netscan.scanner.classifier import StateClassifier
 from netscan.scanner.runner import NmapScanner
 from netscan.services.webhook_service import WebhookDispatcher
 
+_webhook_tasks: set = set()
+
+
+def _track_webhook_task(task: asyncio.Task) -> None:
+    _webhook_tasks.discard(task)
+    if task.exception():
+        logger.error("Webhook task failed: %s", task.exception())
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +57,13 @@ def recover_stale_scan_jobs(session: Session, max_age_seconds: int = 600) -> int
 
 
 def check_active_scan(session: Session, subnet_id: uuid.UUID) -> ScanJob | None:
-    """Return the active ScanJob for a subnet, or None if no scan is in progress."""
+    """Return the active ScanJob for a subnet, or None if no scan is in progress.
+
+    Note: This has a TOCTOU race window (check-then-insert is not atomic).
+    Under the single-instance constraint documented in PRODUCTION_READINESS.md,
+    this is acceptable. A unique partial index on (subnet_id, status) would be
+    the proper fix for multi-instance deployments, but requires PostgreSQL.
+    """
     return session.exec(
         select(ScanJob).where(
             ScanJob.subnet_id == subnet_id,
@@ -265,9 +280,11 @@ class ScanService:
 
             # Dispatch webhooks asynchronously
             for evt in state_change_events:
-                asyncio.create_task(WebhookDispatcher.dispatch_event("ip.state_changed", evt, session))
+                task = asyncio.create_task(WebhookDispatcher.dispatch_event("ip.state_changed", evt, session))
+                task.add_done_callback(_track_webhook_task)
+                _webhook_tasks.add(task)
 
-            asyncio.create_task(
+            task = asyncio.create_task(
                 WebhookDispatcher.dispatch_event(
                     "scan.completed",
                     {
@@ -283,6 +300,8 @@ class ScanService:
                     session,
                 )
             )
+            task.add_done_callback(_track_webhook_task)
+            _webhook_tasks.add(task)
 
 
 scan_service = ScanService()

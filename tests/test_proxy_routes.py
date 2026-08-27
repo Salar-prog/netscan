@@ -63,6 +63,15 @@ class TestWebhookProxy:
         )
         assert res.status_code == 303
 
+    def test_create_webhook_ssrf_blocked(self, dashboard_client: TestClient):
+        res = dashboard_client.post(
+            "/web/webhooks",
+            headers=HX,
+            json={"name": "ssrf-hook", "url": "http://169.254.169.254/latest", "events": ["scan.completed"]},
+        )
+        assert res.status_code == 400
+        assert "blocked" in res.json()["detail"].lower()
+
 
 class TestDualCookieFormat:
     def test_ldap_cookie_grants_access(self, ldap_client: TestClient):

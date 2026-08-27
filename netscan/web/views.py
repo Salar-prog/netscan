@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from netscan.api.auth import hash_key
 from netscan.config import settings
 from netscan.db import get_session
+from netscan.webhooks_check import is_url_blocked
 from netscan.models import (
     ApiKey,
     EventType,
@@ -97,7 +98,7 @@ async def _login_ldap(form: dict, request: Request):
             context={"ldap_enabled": True, "error": "Username and password are required."},
         )
 
-    result = ldap_authenticate(username, password)
+    result = await ldap_authenticate(username, password)
     if not result:
         return templates.TemplateResponse(
             request=request,
@@ -108,7 +109,9 @@ async def _login_ldap(form: dict, request: Request):
     role = map_groups_to_role(result["groups"])
     cookie_value = create_ldap_session_cookie(result["username"], role.value)
     response = RedirectResponse(url="/", status_code=303)
-    response.set_cookie(COOKIE_NAME, cookie_value, max_age=86400 * 7, httponly=True, samesite="lax", path="/")
+    response.set_cookie(
+        COOKIE_NAME, cookie_value, max_age=86400 * 7, httponly=True, samesite="lax", secure=not settings.DEBUG, path="/"
+    )
     return response
 
 
@@ -135,6 +138,7 @@ async def _login_api_key(form: dict, request: Request, session: Session):
         max_age=86400 * 7,
         httponly=True,
         samesite="lax",
+        secure=not settings.DEBUG,
         path="/",
     )
     return response
@@ -329,7 +333,7 @@ def provision_view(request: Request, session: Session = Depends(get_session)):
 @web_router.get("/web/ips/available", response_class=JSONResponse)
 def web_available_ips(
     subnet_id: str,
-    count: int = 1,
+    count: int = Query(default=1, le=50),
     request: Request = None,
     session: Session = Depends(get_session),
 ):
@@ -522,6 +526,9 @@ def web_create_webhook(request: Request, payload: WebhookCreate, session: Sessio
     user = _require_dashboard_user(request, session)
     _require_role(user, Role.ADMIN, Role.OPERATOR)
 
+    if is_url_blocked(str(payload.url)):
+        raise HTTPException(status_code=400, detail="Webhook URL targets a blocked private/metadata address")
+
     import secrets as _secrets
 
     raw_secret = _secrets.token_urlsafe(32)
@@ -563,7 +570,7 @@ async def web_test_webhook(webhook_id: uuid.UUID, request: Request, session: Ses
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     test_data = {"test": True, "message": "NetScan test webhook delivery"}
-    await WebhookDispatcher.dispatch_event("webhook.test", test_data, session)
+    await WebhookDispatcher.dispatch_event_to("webhook.test", test_data, wh, session)
 
     if request.headers.get("hx-request"):
         return JSONResponse({"message": f"Test payload dispatched to {wh.url}"})

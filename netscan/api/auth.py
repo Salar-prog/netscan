@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from datetime import timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
@@ -57,7 +58,9 @@ async def get_current_api_key(
             detail="Invalid or revoked API Key.",
         )
 
-    key_rec.last_used_at = utc_now()
-    session.add(key_rec)
-    session.commit()
+    now = utc_now()
+    if not key_rec.last_used_at or (now - key_rec.last_used_at.replace(tzinfo=timezone.utc)).total_seconds() > 3600:
+        key_rec.last_used_at = now
+        session.add(key_rec)
+        session.commit()
     return key_rec
