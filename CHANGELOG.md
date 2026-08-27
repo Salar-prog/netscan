@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scoped IP lookup** — `GET /ips/{ip}` accepts optional `subnet_id` query parameter
 - **Scheduler health** — `/health` now verifies scheduler liveness
 - **Bootstrap kill-switch** — `DISABLE_BOOTSTRAP` setting to disable HTTP bootstrap endpoint
+- **Overlapping-subnet detection** — `POST /subnets` rejects CIDRs that overlap with existing subnets
+- **Soft key revoke** — `DELETE /auth/keys/{id}` sets `revoked_at` instead of hard-delete
+- **Key PATCH endpoint** — `PATCH /auth/keys/{id}` to rename, reassign role, or set expiry
+- **Correlation IDs** — `X-Request-ID` header generated per request, included in access logs
+- **Graceful shutdown** — lifespan drains in-flight webhook tasks before exit
+- **Typed response models** — `SubnetMatrixResponse`, `SubnetScanTriggered`, `AvailableIPsResponse` on key routes
+- **Postgres CI** — GitHub Actions runs full test suite against Postgres 16
+- **Dual-database test fixture** — conftest detects `DATABASE_URL`, supports SQLite + Postgres
 
 ### Fixed
 

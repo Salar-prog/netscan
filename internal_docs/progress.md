@@ -352,7 +352,35 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 
 ---
 
-## Summary
+## Production Polish
+
+**Status:** COMPLETE
+**Commits:** `76d5ef7`, `457b681`, `9f44551`, `d9f0e6f`, `1a0aa34`, `b8d31ba`, `159edb2`, `bbb13ea`
+
+| Item | Status | Notes |
+|------|--------|-------|
+| F14: N+1 subnet listing | Done | Replaced 4-per-subnet count queries with single GROUP BY using `sqlalchemy.func.count()` |
+| F15: Retention policy | Done | `RETENTION_DAYS=90`, `netscan/services/retention.py` prunes on startup |
+| F18: Webhook dispatch test | Done | `tests/test_webhook_dispatch.py` exercises scan→webhook end-to-end |
+| F21: Scoped IP lookup | Done | `GET /ips/{ip}` accepts `subnet_id` query param |
+| F22: Proxy-aware access logs | Done | `AccessLogMiddleware` uses `get_client_ip()` from `limiter.py` |
+| F23: Scheduler health | Done | `/health` checks `scheduler.scheduler.running` |
+| F24: Metrics endpoint | Done | `/metrics` with Prometheus-format counters |
+| F25: Single-instance constraint | Done | Documented in README |
+| F28: Services `__init__` cleanup | Done | Removed singleton re-exports that shadowed module names |
+| F29: Version duplication | Done | `importlib.metadata.version()` in `main.py` and `/health` |
+| F30: Reserved IP counter | Done | Already correct (resets on positive probe) |
+| F31: Zombie process fix | Done | `await process.wait()` after `process.kill()` in scanner |
+| F33: RedirectResponse decision | Done | Cancelled — `HTTPException(307)` is correct pattern for FastAPI deps |
+| F34: Bootstrap kill-switch | Done | `DISABLE_BOOTSTRAP` setting disables HTTP bootstrap endpoint |
+| F1: Overlapping-subnet detection | Done | `POST /subnets` rejects CIDRs that overlap with existing subnets |
+| F2: Soft key revoke | Done | `DELETE` sets `revoked_at`; `PATCH` endpoint for name/role/expiry |
+| F3: Correlation IDs | Done | `X-Request-ID` header generated per request, included in access logs |
+| F4: Graceful shutdown | Done | Lifespan drains in-flight webhook tasks before exit |
+| F5: Typed response models | Done | `SubnetMatrixResponse`, `SubnetScanTriggered`, `AvailableIPsResponse` |
+| F6: Postgres CI | Done | GitHub Actions runs full test suite against Postgres 16 |
+
+---
 
 | Phase | Status | Tests |
 |-------|--------|-------|
@@ -369,3 +397,4 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | Restructure | COMPLETE | v0.1.0 released, CI + Publish green |
 | P0+P1 Hardening | COMPLETE | 131/131 pass, PR #26 merged |
 | P2 Hardening | COMPLETE | 132/132 pass, PR #27 merged |
+| Production Polish | COMPLETE | 133/133 pass, 6 commits on main |
