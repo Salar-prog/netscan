@@ -570,7 +570,7 @@ async def web_test_webhook(webhook_id: uuid.UUID, request: Request, session: Ses
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     test_data = {"test": True, "message": "NetScan test webhook delivery"}
-    await WebhookDispatcher.dispatch_event("webhook.test", test_data, session)
+    await WebhookDispatcher.dispatch_event_to("webhook.test", test_data, wh, session)
 
     if request.headers.get("hx-request"):
         return JSONResponse({"message": f"Test payload dispatched to {wh.url}"})

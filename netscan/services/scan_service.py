@@ -19,6 +19,14 @@ from netscan.scanner.classifier import StateClassifier
 from netscan.scanner.runner import NmapScanner
 from netscan.services.webhook_service import WebhookDispatcher
 
+_webhook_tasks: set = set()
+
+
+def _track_webhook_task(task: asyncio.Task) -> None:
+    _webhook_tasks.discard(task)
+    if task.exception():
+        logger.error("Webhook task failed: %s", task.exception())
+
 logger = logging.getLogger(__name__)
 
 
@@ -265,9 +273,11 @@ class ScanService:
 
             # Dispatch webhooks asynchronously
             for evt in state_change_events:
-                asyncio.create_task(WebhookDispatcher.dispatch_event("ip.state_changed", evt, session))
+                task = asyncio.create_task(WebhookDispatcher.dispatch_event("ip.state_changed", evt, session))
+                task.add_done_callback(_track_webhook_task)
+                _webhook_tasks.add(task)
 
-            asyncio.create_task(
+            task = asyncio.create_task(
                 WebhookDispatcher.dispatch_event(
                     "scan.completed",
                     {
@@ -283,6 +293,8 @@ class ScanService:
                     session,
                 )
             )
+            task.add_done_callback(_track_webhook_task)
+            _webhook_tasks.add(task)
 
 
 scan_service = ScanService()

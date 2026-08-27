@@ -115,5 +115,5 @@ async def test_webhook(
         "sample_ip": "192.168.1.100",
         "sample_status": "ACTIVE_DETECTED",
     }
-    await WebhookDispatcher.dispatch_event("webhook.test", test_data, session)
+    await WebhookDispatcher.dispatch_event_to("webhook.test", test_data, wh, session)
     return {"message": f"Test payload dispatched to {wh.url}"}
