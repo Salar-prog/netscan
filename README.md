@@ -124,6 +124,8 @@ volumes:
 
 </details>
 
+**Single-instance constraint:** NetScan uses SQLite (WAL mode) and an in-process scheduler. Run exactly one worker and one container per database — multiple instances will duplicate scheduled scans and corrupt concurrent writes. For multi-instance deployments, switch to PostgreSQL (not yet supported) and externalize the scheduler.
+
 ## CLI
 
 ```
