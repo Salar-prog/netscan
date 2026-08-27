@@ -104,6 +104,7 @@ async def lifespan(app: FastAPI):
 
     alembic_cfg = AlembicConfig("alembic.ini")
     alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    alembic_cfg.attributes["connectable"] = engine
     alembic_command.upgrade(alembic_cfg, "head")
     logger.info("Recovering stale scan jobs...")
     from sqlmodel import Session as _Session

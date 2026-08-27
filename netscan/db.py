@@ -1,5 +1,5 @@
 from sqlalchemy import event
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
 from netscan.config import settings
 
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
@@ -21,8 +21,8 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 
 
 def init_db() -> None:
-    """Initialize database tables."""
-    SQLModel.metadata.create_all(engine)
+    """Initialize database. Schema is managed by Alembic migrations."""
+    pass
 
 
 def get_session():
