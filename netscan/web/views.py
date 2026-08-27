@@ -98,7 +98,7 @@ async def _login_ldap(form: dict, request: Request):
             context={"ldap_enabled": True, "error": "Username and password are required."},
         )
 
-    result = ldap_authenticate(username, password)
+    result = await ldap_authenticate(username, password)
     if not result:
         return templates.TemplateResponse(
             request=request,
@@ -109,7 +109,9 @@ async def _login_ldap(form: dict, request: Request):
     role = map_groups_to_role(result["groups"])
     cookie_value = create_ldap_session_cookie(result["username"], role.value)
     response = RedirectResponse(url="/", status_code=303)
-    response.set_cookie(COOKIE_NAME, cookie_value, max_age=86400 * 7, httponly=True, samesite="lax", path="/")
+    response.set_cookie(
+        COOKIE_NAME, cookie_value, max_age=86400 * 7, httponly=True, samesite="lax", secure=not settings.DEBUG, path="/"
+    )
     return response
 
 
@@ -136,6 +138,7 @@ async def _login_api_key(form: dict, request: Request, session: Session):
         max_age=86400 * 7,
         httponly=True,
         samesite="lax",
+        secure=not settings.DEBUG,
         path="/",
     )
     return response
