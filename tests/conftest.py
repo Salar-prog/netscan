@@ -12,14 +12,19 @@ from netscan.db import get_session
 from netscan.main import app
 from netscan.models import Role
 
+_db_url = os.environ.get("DATABASE_URL", "sqlite://")
+_is_sqlite = _db_url.startswith("sqlite")
+
+
+def _make_engine():
+    if _is_sqlite:
+        return create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    return create_engine(_db_url)
+
 
 @pytest.fixture(name="client")
 def client_fixture():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = _make_engine()
     SQLModel.metadata.create_all(engine)
 
     def get_session_override():
