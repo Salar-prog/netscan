@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from netscan.api.auth import generate_api_key, get_current_api_key, require_role
+from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import ApiKey, Role
 
@@ -71,9 +72,10 @@ def bootstrap_first_key(
     """Create the first API key when no keys exist. Disabled once any key exists."""
     existing = session.exec(select(ApiKey)).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bootstrap disabled: API keys already exist. Use POST /api/v1/auth/keys with a valid key.",
+        raise NetScanException(
+            "BOOTSTRAP_DISABLED",
+            "Bootstrap disabled: API keys already exist. Use POST /api/v1/auth/keys with a valid key.",
+            status_code=403,
         )
     raw_key, key_hash, prefix = generate_api_key()
     api_key_rec = ApiKey(
@@ -88,9 +90,10 @@ def bootstrap_first_key(
         session.commit()
     except IntegrityError:
         session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Bootstrap race detected: another key was created simultaneously. Try again.",
+        raise NetScanException(
+            "BOOTSTRAP_RACE",
+            "Bootstrap race detected: another key was created simultaneously. Try again.",
+            status_code=409,
         )
     session.refresh(api_key_rec)
     return {
@@ -111,7 +114,7 @@ def revoke_key(
 ):
     rec = session.get(ApiKey, key_id)
     if not rec:
-        raise HTTPException(status_code=404, detail="API Key not found")
+        raise NetScanException("API_KEY_NOT_FOUND", "API Key not found", status_code=404)
     session.delete(rec)
     session.commit()
     return None

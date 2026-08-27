@@ -150,7 +150,7 @@ def test_large_cidr_rejected(e2e_client):
             headers=headers,
         )
         assert res.status_code == 400, f"Expected 400 for {cidr}, got {res.status_code}"
-        assert "too large" in res.json()["detail"]
+        assert "too large" in res.json()["message"].lower()
 
 
 def test_normal_cidr_accepted(e2e_client):
@@ -192,7 +192,7 @@ def test_scan_concurrency_guard(e2e_client):
     # Second trigger should be rejected
     res = client.post(f"/api/v1/subnets/{subnet_id}/scan", headers=headers)
     assert res.status_code == 409
-    assert "already in progress" in res.json()["detail"]
+    assert "already in progress" in res.json()["message"]
 
 
 def test_webhook_ssrf_blocklist(e2e_client):
@@ -213,7 +213,7 @@ def test_webhook_ssrf_blocklist(e2e_client):
             headers=headers,
         )
         assert res.status_code == 400, f"Expected 400 for {url}"
-        assert "private/internal" in res.json()["detail"]
+        assert "private/internal" in res.json()["message"]
 
 
 def test_webhook_public_url_accepted(e2e_client):
@@ -237,7 +237,7 @@ def test_bootstrap_only_works_once(e2e_client):
         json={"name": "second-bootstrap"},
     )
     assert res.status_code == 403
-    assert "already exist" in res.json()["detail"]
+    assert "already exist" in res.json()["message"]
 
 
 def test_read_only_cannot_trigger_scan(e2e_client):

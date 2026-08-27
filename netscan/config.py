@@ -22,9 +22,10 @@ class Settings(BaseSettings):
     NMAP_TIMING_TEMPLATE: str = "-T4"
     TOP_TCP_PORTS: str = "80,443,22,445,3389,8080,8443,53"
     MAX_SCAN_PREFIX_LENGTH: int = 24
+    RATE_LIMIT_DEFAULT: str = "120/minute"
 
     # CORS
-    ALLOWED_ORIGINS: str = "*"
+    ALLOWED_ORIGINS: str = ""
 
     # Trusted Proxies (comma-separated IPs for X-Forwarded-For)
     TRUSTED_PROXIES: str = ""

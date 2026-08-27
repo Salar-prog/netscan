@@ -1,8 +1,9 @@
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key
+from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import ScanJob
 
@@ -31,5 +32,5 @@ def get_scan(
 ):
     job = session.get(ScanJob, scan_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Scan job not found")
+        raise NetScanException("SCAN_NOT_FOUND", "Scan job not found", status_code=404)
     return job

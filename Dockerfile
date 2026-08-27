@@ -22,6 +22,9 @@ WORKDIR /app
 COPY --from=builder /build/wheels /tmp/wheels
 RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+
 RUN useradd -m -s /bin/bash netscan && chown -R netscan:netscan /app
 USER netscan
 

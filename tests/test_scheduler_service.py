@@ -111,3 +111,32 @@ async def test_trigger_scheduled_scan_creates_queued_job_and_executes(db_engine,
         assert jobs[0].subnet_id == subnet.id
         assert jobs[0].status == ScanStatus.QUEUED
         assert jobs[0].triggered_by == TriggerType.SCHEDULE
+
+
+async def test_trigger_scheduled_scan_skips_when_active_exists(db_engine, sched, monkeypatch):
+    """Scheduler should skip creating a new job if one is already active."""
+    fake = FakeScanService()
+    monkeypatch.setattr(scheduler_module, "scan_service", fake)
+
+    subnet = make_subnet(db_engine, cidr="10.5.0.0/30")
+
+    # Seed an active RUNNING job
+    with Session(db_engine) as session:
+        active = ScanJob(
+            subnet_id=subnet.id,
+            status=ScanStatus.RUNNING,
+            triggered_by=TriggerType.MANUAL_API,
+        )
+        session.add(active)
+        session.commit()
+
+    await ScanScheduler.trigger_scheduled_scan(subnet.id)
+
+    # No new job should be created
+    with Session(db_engine) as session:
+        jobs = session.exec(select(ScanJob)).all()
+        assert len(jobs) == 1  # only the original RUNNING job
+        assert jobs[0].status == ScanStatus.RUNNING
+
+    # execute_scan should NOT have been called
+    assert len(fake.executed) == 0

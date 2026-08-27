@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
 import httpx
@@ -36,6 +37,7 @@ class WebhookDispatcher:
 
         payload = {
             "event": event_name,
+            "event_id": str(uuid.uuid4()),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": data,
         }

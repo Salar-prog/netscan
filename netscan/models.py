@@ -161,3 +161,15 @@ class ApiKey(SQLModel, table=True):
     is_active: bool = Field(default=True)
     last_used_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class IdempotencyRecord(SQLModel, table=True):
+    __tablename__ = "idempotency_records"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    idempotency_key: str = Field(index=True, unique=True)
+    endpoint: str
+    request_hash: str
+    status_code: int
+    response_body: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utc_now)

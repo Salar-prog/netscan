@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from netscan.api.v1.router import api_v1_router
 from netscan.config import settings
@@ -98,15 +99,19 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing NetScan database...")
     init_db()
     logger.info("Running Alembic migrations...")
-    try:
-        from alembic.config import Config as AlembicConfig
-        from alembic import command as alembic_command
+    from alembic.config import Config as AlembicConfig
+    from alembic import command as alembic_command
 
-        alembic_cfg = AlembicConfig("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-        alembic_command.upgrade(alembic_cfg, "head")
-    except Exception as e:
-        logger.warning(f"Alembic migration skipped: {e}")
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    alembic_cfg.attributes["connectable"] = engine
+    alembic_command.upgrade(alembic_cfg, "head")
+    logger.info("Recovering stale scan jobs...")
+    from sqlmodel import Session as _Session
+    from netscan.services.scan_service import recover_stale_scan_jobs
+
+    with _Session(engine) as _session:
+        recover_stale_scan_jobs(_session)
     logger.info("Starting NetScan scheduler...")
     scheduler.start()
     yield
@@ -131,14 +136,26 @@ def create_app(dashboard: bool = True) -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    from netscan.api.errors import NetScanException, netscan_exception_handler
+
+    app.add_exception_handler(NetScanException, netscan_exception_handler)
+
+    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(AccessLogMiddleware)
+
+    from netscan.api.idempotency import IdempotencyKeyMiddleware
+
+    app.add_middleware(IdempotencyKeyMiddleware)
+
+    allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # Mount API router (always loaded)
     app.include_router(api_v1_router)

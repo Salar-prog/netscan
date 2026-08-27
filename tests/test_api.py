@@ -218,7 +218,7 @@ def test_scan_concurrency_guard(auth_db):
     # Second trigger should be rejected
     dup_scan = client.post(f"/api/v1/subnets/{subnet_id}/scan", headers=headers)
     assert dup_scan.status_code == 409
-    assert "already in progress" in dup_scan.json()["detail"]
+    assert "already in progress" in dup_scan.json()["message"]
 
 
 def test_get_ip_detail_and_404(auth_db):
@@ -251,7 +251,7 @@ def test_webhook_ssrf_blocklist(auth_client):
     for url in blocked_urls:
         res = client.post("/api/v1/webhooks", json={"name": "test", "url": url}, headers=headers)
         assert res.status_code == 400, f"Expected 400 for {url}"
-        assert "private/internal" in res.json()["detail"]
+        assert "private/internal" in res.json()["message"]
 
     # Public URL should work
     res = client.post("/api/v1/webhooks", json={"name": "ok", "url": "https://example.com/hook"}, headers=headers)
