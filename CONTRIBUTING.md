@@ -61,7 +61,7 @@ netscan/
   api/idempotency.py  # Idempotency key middleware
   auth/            # LDAP/AD authentication (bind + group→role mapping)
   scanner/         # Nmap runner, CIDR utils, classifier
-  services/        # Scan orchestration, scheduler, webhook dispatcher
+  services/        # Scan orchestration, scheduler, webhook dispatcher, retention
   web/             # HTMX dashboard, templates, session cookies, /web/* proxy routes
   config.py        # Settings via pydantic-settings
   models.py        # SQLModel schemas
@@ -69,9 +69,9 @@ netscan/
   limiter.py       # SlowAPI rate limiter
   main.py          # FastAPI app factory, lifespan, middleware
   cli.py           # netscan serve / netscan login
-tests/             # Test suite (pytest)
+tests/             # Test suite (pytest) — 133 tests
 alembic/           # Database migrations
-docs/              # Public docs (API reference, QA guide)
+docs/              # Public docs (API reference, QA guide, production readiness)
 internal_docs/     # Internal dev logs (plans, progress, decisions)
 ```
 

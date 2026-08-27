@@ -88,7 +88,7 @@ curl -H "X-API-Key: <key>" \
 curl -X PATCH -H "X-API-Key: <key>" \
   -H "Content-Type: application/json" \
   http://localhost:8000/api/v1/ips/192.168.1.50 \
-  -d '{"status": "reserved", "note": "k8s node 3"}'
+  -d '{"is_reserved": true, "hostname": "k8s-node-3"}'
 ```
 
 ---
@@ -135,7 +135,17 @@ Response includes `secret` — store it for HMAC signature verification.
 | `GET` | `/api/v1/auth/keys` | List keys |
 | `POST` | `/api/v1/auth/keys` | Create key |
 | `POST` | `/api/v1/auth/keys/bootstrap` | Create first key (open until first key exists) |
-| `DELETE` | `/api/v1/auth/keys/{id}` | Revoke key |
+| `PATCH` | `/api/v1/auth/keys/{id}` | Rename, reassign role, or set expiry |
+| `DELETE` | `/api/v1/auth/keys/{id}` | Soft-revoke key (sets `revoked_at`) |
+
+**Update a key:**
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/auth/keys/<KEY_ID> \
+  -H "X-API-Key: <admin-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "new-name", "role": "operator", "expires_at": "2026-12-31T23:59:59Z"}'
+```
 
 ---
 
@@ -169,6 +179,7 @@ All errors return a structured JSON envelope:
 | `404` | `SCAN_NOT_FOUND` | Scan job does not exist |
 | `404` | `WEBHOOK_NOT_FOUND` | Webhook does not exist |
 | `409` | `SUBNET_EXISTS` | CIDR already registered |
+| `400` | `SUBNET_OVERLAPS` | CIDR overlaps with existing subnet |
 | `409` | `SCAN_ALREADY_RUNNING` | Active scan exists for this subnet |
 | `409` | `BOOTSTRAP_RACE` | Two bootstrap requests raced; retry |
 | `422` | *(validation)* | Pydantic validation error (check `detail`) |
@@ -192,6 +203,45 @@ curl -X POST http://localhost:8000/api/v1/subnets \
 - Keys are scoped to the HTTP method + path + request body.
 - Cached responses are returned for **24 hours**.
 - Without the header, requests are not idempotent.
+
+---
+
+## Metrics
+
+`GET /metrics` returns Prometheus-format counters:
+
+```
+netscan_subnets_total <count>
+netscan_ips_total <count>
+netscan_scans_total <count>
+```
+
+No authentication required.
+
+---
+
+## Correlation IDs
+
+Every request gets an `X-Request-ID` header (UUID). If the client sends one, it's echoed back. The ID appears in access logs and response headers for request tracing.
+
+---
+
+## Health Check
+
+`GET /health` returns service status including database, nmap, and scheduler liveness. No authentication required.
+
+```json
+{
+  "status": "healthy",
+  "service": "NetScan",
+  "version": "0.2.0",
+  "checks": {
+    "database": "ok",
+    "nmap": "ok",
+    "scheduler": "ok"
+  }
+}
+```
 
 ---
 

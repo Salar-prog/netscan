@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — This change log covers Phases 1-7 of the original build (2026-08-24). Later hardening (P0/P1/P2), production polish, and audit fixes are documented in `progress.md` and `CHANGELOG.md`. Kept for historical reference.
+
 # Changes Log
 
 Every actual change made, mapped to the stage that produced it.

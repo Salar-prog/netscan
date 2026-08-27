@@ -161,3 +161,31 @@ A: Yes. `netscan login` prompts for username/password, binds to LDAP, on success
 
 **Q: python-ldap requires system-level libldap2-dev. Is that OK?**
 A: Yes. The Dockerfile already installs build tools for compilation. For local dev, `sudo apt install libldap2-dev libsasl2-dev` is documented in README. python-ldap is the standard LDAP library for Python — no viable pure-Python alternative for AD integration.
+
+---
+
+## 2026-08-27: Overlapping subnet detection
+
+**Q: Should overlapping CIDRs be rejected on subnet creation?**
+A: Yes. Use `ipaddress.IPv4Network.overlaps()` to check against all existing subnets. Reject if the new CIDR overlaps with any existing one (excluding exact duplicates, which are caught by the unique constraint). Prevents ambiguous IP lookups when the same IP exists in two overlapping subnets.
+
+---
+
+## 2026-08-27: Soft key revoke vs hard delete
+
+**Q: Should DELETE /auth/keys/{id} hard-delete the key or soft-revoke?**
+A: Soft-revoke. Set `revoked_at` timestamp and `is_active=false`. The row stays for audit trail (which key did what). Add PATCH endpoint for renaming, reassigning role, or setting expiry. This preserves the audit trail that hard-delete destroys.
+
+---
+
+## 2026-08-27: Correlation IDs
+
+**Q: Should we add correlation IDs for request tracing?**
+A: Yes. Generate a UUID per request (`X-Request-ID` header). If the client sends one, echo it back. Include in access logs. Lightweight, no external deps, standard practice for distributed tracing.
+
+---
+
+## 2026-08-27: Graceful shutdown
+
+**Q: Should we drain in-flight tasks on shutdown?**
+A: Yes. Track webhook tasks in a set with done-callbacks. On lifespan exit, `await asyncio.gather()` on all tracked tasks with `return_exceptions=True`. Bounded by asyncio default timeout. Prevents orphaned webhook deliveries on deploy.

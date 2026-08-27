@@ -16,6 +16,7 @@
 - [ ] `ruff check netscan/ tests/` clean
 - [ ] `ruff format --check netscan/ tests/` clean
 - [ ] New logic covered by tests
+- [ ] Postgres tests pass (if schema changes involved)
 
 ## Checklist
 

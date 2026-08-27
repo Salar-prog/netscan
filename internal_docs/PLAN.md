@@ -1,4 +1,6 @@
-﻿# NetScan: Production-Grade IP Discovery & Availability System
+﻿> **ARCHIVAL NOTE** — This is the original architecture specification from the initial build phase (2026-08-24). It reflects the planned design, not the current implementation. For the current state, see `progress.md` and `CHANGELOG.md`. Kept for historical reference.
+
+# NetScan: Production-Grade IP Discovery & Availability System
 ## Architecture & Technical Specification (Refined)
 
 A robust, API-first IP availability tracking and network discovery platform built with **FastAPI**, **SQLModel (SQLite/PostgreSQL)**, **Nmap multi-stage probe engine**, and a **lightweight HTMX/Tailwind web dashboard**.

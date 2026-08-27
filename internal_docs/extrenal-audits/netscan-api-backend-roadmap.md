@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — API backend roadmap (2026-08-25). Most Tier 0 and Tier 1 items are now completed. Kept for historical reference.
+
 # NetScan as an API Backend for Other Tools/Automations — Roadmap
 
 The bar changes more than it first looks. A human clicking a dashboard tolerates a stuck job, an occasional 500, a UI that needs a refresh. A backend other systems call in a pipeline doesn't get that tolerance — it needs to be **idempotent, recoverable, and predictable** even when the caller is a cron job or another service with no human watching. That reframes which of the existing gaps matter most, and surfaces a few new ones the dashboard use case never exercised.

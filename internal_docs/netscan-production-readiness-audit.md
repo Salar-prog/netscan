@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — Original production-readiness audit (2026-08-25, before Phase 9/10 hardening). Most findings are now addressed. For the current state, see `docs/PRODUCTION_READINESS.md`. Kept for historical reference.
+
 # NetScan — Production-Readiness Audit
 
 Scope: cloned `Salar-prog/netscan` and read the actual source (not just the README) — `netscan/scanner/`, `netscan/api/`, `netscan/services/`, `netscan/web/`, `netscan/db.py`, `netscan/config.py`, `Dockerfile`, `pyproject.toml`, `alembic/`, and the test suite. Every item below is tied to a specific file, not a general guess.

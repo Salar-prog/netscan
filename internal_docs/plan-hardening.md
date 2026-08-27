@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — Original hardening plan (Phases 1-5, 2026-08-24). All phases completed. For the current production-hardening plans, see `plan-hardening-p0-p1.md` and `plan-hardening-p2.md`. Kept for historical reference.
+
 # NetScan Production Hardening Plan
 
 **Goal**: Make netscan deployable on production and staging server networks.

@@ -103,7 +103,7 @@ netscan serve --host 0.0.0.0 --port 8000</code><button class="copy-btn absolute 
       </div>
     </div>
     <div class="bg-green-950 border border-green-800 rounded-lg p-3 text-sm text-green-300">
-      <strong>Expected:</strong> <code>{"status":"healthy","service":"NetScan","version":"0.1.0","checks":{"database":"ok","nmap":"ok"}}</code>
+      <strong>Expected:</strong> <code>{"status":"healthy","service":"NetScan","version":"0.2.0","checks":{"database":"ok","nmap":"ok","scheduler":"ok"}}</code>
     </div>
   </section>
 
@@ -117,7 +117,7 @@ netscan serve --host 0.0.0.0 --port 8000</code><button class="copy-btn absolute 
 # Save the raw_key — never shown again
 export NSCAN_KEY="nsc_YOUR_KEY_HERE"</code><button class="copy-btn absolute top-2 right-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button></pre>
     <div class="bg-yellow-950 border border-yellow-800 rounded-lg p-3 text-sm text-yellow-300">
-      <strong>Expected:</strong> 201 with <code>id</code>, <code>prefix</code>, <code>role: "admin"</code>, <code>raw_key</code> fields.
+      <strong>Expected:</strong> 201 with <code>id</code>, <code>prefix</code>, <code>role: "admin"</code>, <code>raw_key</code>, <code>expires_at</code>, <code>revoked_at</code> fields.
     </div>
   </section>
 

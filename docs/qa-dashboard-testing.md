@@ -36,67 +36,67 @@ netscan serve --reload
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 7 | Subnet list loads | GET `/` | Table with subnets, CIDR column |
-| 8 | Create subnet | Fill form, submit | New row in table |
-| 9 | Trigger scan | Click scan button | Job created, status updates |
-| 10 | Delete subnet | Click delete, confirm | Row removed |
-| 11 | View subnet details | Click CIDR link | Drawer opens with IP list |
+| 11 | Subnet list loads | GET `/` | Table with subnets, CIDR column |
+| 12 | Create subnet | Fill form, submit | New row in table |
+| 13 | Trigger scan | Click scan button | Job created, status updates |
+| 14 | Delete subnet | Click delete, confirm | Row removed |
+| 15 | View subnet details | Click CIDR link | Drawer opens with IP list |
 
 ### IP Management (5 tests)
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 12 | IP matrix loads | GET `/` | Grid of IPs with color coding |
-| 13 | IP status colors | Check matrix | Green=active, yellow=uncertain, red=unreachable, gray=available |
-| 14 | IP drawer opens | Click IP in matrix | Side drawer with IP details |
-| 15 | Reserve IP | In drawer, set reserved | IP status changes to reserved |
-| 16 | IP history | In drawer, click history | Audit trail shown |
+| 16 | IP matrix loads | GET `/` | Grid of IPs with color coding |
+| 17 | IP status colors | Check matrix | Green=active, yellow=uncertain, red=unreachable, gray=available |
+| 18 | IP drawer opens | Click IP in matrix | Side drawer with IP details |
+| 19 | Reserve IP | In drawer, set reserved | IP status changes to reserved |
+| 20 | IP history | In drawer, click history | Audit trail shown |
 
 ### Settings (6 tests)
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 17 | Settings page loads | GET `/settings` | API keys table + webhooks table |
-| 18 | Generate key | Click generate, enter name | New key shown once, appears in table |
-| 19 | Revoke key | Click revoke | Key removed from table |
-| 20 | Create webhook | Fill URL, select events | Webhook appears in table, secret shown once |
-| 21 | Test webhook | Click test button | Notification sent, response shown |
-| 22 | Delete webhook | Click delete | Webhook removed |
+| 21 | Settings page loads | GET `/settings` | API keys table + webhooks table |
+| 22 | Generate key | Click generate, enter name | New key shown once, appears in table |
+| 23 | Revoke key | Click revoke | Key soft-revoked (revoked_at set) |
+| 24 | Create webhook | Fill URL, select events | Webhook appears in table, secret shown once |
+| 25 | Test webhook | Click test button | Notification sent, response shown |
+| 26 | Delete webhook | Click delete | Webhook removed |
 
 ### Scan Jobs (3 tests)
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 23 | Scans page loads | GET `/scans` | Table with scan jobs |
-| 24 | Job status updates | Trigger scan, wait | Status changes from QUEUED → RUNNING → COMPLETED |
-| 25 | Job history | Check scans page after multiple scans | All jobs listed with timestamps |
+| 27 | Scans page loads | GET `/scans` | Table with scan jobs |
+| 28 | Job status updates | Trigger scan, wait | Status changes from QUEUED → RUNNING → COMPLETED |
+| 29 | Job history | Check scans page after multiple scans | All jobs listed with timestamps |
 
 ### API Key Header Auth (4 tests)
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 26 | API list subnets | `curl -H "X-API-Key: <key>" /api/v1/subnets` | 200, JSON array |
-| 27 | API create subnet | POST with JSON body + API key | 201, subnet created |
-| 28 | API without key | `curl /api/v1/subnets` | 401 |
-| 29 | API with wrong key | `curl -H "X-API-Key: wrong" /api/v1/subnets` | 401 |
+| 30 | API list subnets | `curl -H "X-API-Key: <key>" /api/v1/subnets` | 200, JSON array |
+| 31 | API create subnet | POST with JSON body + API key | 201, subnet created |
+| 32 | API without key | `curl /api/v1/subnets` | 401 |
+| 33 | API with wrong key | `curl -H "X-API-Key: wrong" /api/v1/subnets` | 401 |
 
 ### Responsive Layout (3 tests)
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 30 | Desktop layout | 1920x1080 | Full sidebar, matrix grid |
-| 31 | Tablet layout | 768x1024 | Collapsible sidebar |
-| 32 | Mobile layout | 375x667 | Hamburger menu, stacked layout |
+| 34 | Desktop layout | 1920x1080 | Full sidebar, matrix grid |
+| 35 | Tablet layout | 768x1024 | Collapsible sidebar |
+| 36 | Mobile layout | 375x667 | Hamburger menu, stacked layout |
 
 ## Test Fixtures
 
 ```python
 # conftest.py provides:
- client          # Unauthenticated TestClient
-auth_client     # TestClient + bootstrapped API key
-dashboard_client # TestClient with valid session cookie (ak:)
-ldap_client     # TestClient with valid LDAP session cookie (ldap:)
-make_key_headers # Factory for API key headers
+client            # Unauthenticated TestClient
+auth_client       # TestClient + bootstrapped API key
+dashboard_client  # TestClient with valid session cookie (ak:)
+ldap_client       # TestClient with valid LDAP session cookie (ldap:)
+make_key_headers  # Factory for API key headers
 ```
 
 ## Running Specific Tests

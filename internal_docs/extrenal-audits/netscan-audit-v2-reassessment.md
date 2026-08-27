@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — Reassessment after the first fix round (2026-08-25). Most findings (F5-F12, F16-F17, F26-F27) are now addressed. Kept for historical reference.
+
 # NetScan — Reassessment After Fix Round
 
 Pulled `9a7e12d..8d96c64` (59 files, +3216/-474) and read the actual diffs — not the commit messages. Going through the original 14 by number, then two new issues this round introduced.

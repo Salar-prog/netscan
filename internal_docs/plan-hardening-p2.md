@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — P2 hardening plan (2026-08-27). All stages completed and merged in PR #27. Many P3 items listed as non-goals are now completed (F19-F34). For the current state, see `progress.md`. Kept for historical reference.
+
 # NetScan Production Hardening Plan — P2
 
 **Created:** 2026-08-27

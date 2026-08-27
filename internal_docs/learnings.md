@@ -173,3 +173,33 @@ Gotchas, false starts, and things that didn't work and why.
 **Fix:** Moved `import ldap` inside `ldap_authenticate()` as a lazy import. Module loads fine without `python-ldap`; only the actual LDAP function fails gracefully with a logged error.
 
 **Lesson:** For optional system-level dependencies (especially C extensions like python-ldap), keep the import lazy. Pure functions in the same module remain testable without the dependency installed.
+
+---
+
+## Test fixture for dual database support
+
+**Problem:** conftest.py used `StaticPool` (SQLite-only) for all test runs. Adding a Postgres CI job meant the test fixture had to work with both SQLite and Postgres.
+
+**Fix:** Detect `DATABASE_URL` env var. If SQLite, use `StaticPool` (in-memory, fast). If Postgres, use a regular engine (real connection to the CI service container). The `client_fixture` calls `_make_engine()` which returns the appropriate engine.
+
+**Lesson:** When adding database driver support, update test infrastructure first — it's the fastest way to catch dialect incompatibilities.
+
+---
+
+## Zombie process reaping
+
+**Problem:** `runner.py` called `process.kill()` on timeout but didn't `await process.wait()`. The process became a zombie until GC collected it — a brief leak.
+
+**Fix:** Added `await process.wait()` after `process.kill()`. The process is properly reaped immediately.
+
+**Lesson:** After killing a subprocess, always `await process.wait()` to reap it. CPython's GC will eventually collect it, but the window is a real (if brief) resource leak.
+
+---
+
+## Test assertion for new model fields
+
+**Problem:** Adding `expires_at` and `revoked_at` to `ApiKeyResponse` broke `test_list_keys_does_not_expose_key_hash` — the test asserted an exact set of response keys.
+
+**Fix:** Updated the assertion to include the new fields. Tests that assert exact response shapes are brittle under schema evolution — prefer checking "key not in response" (for secret fields) over "exactly these keys" (for non-secret fields).
+
+**Lesson:** When adding response model fields, grep for exact-set assertions in tests. The `key_hash not in key` assertion was correct; the `set(keys[0].keys()) == {...}` assertion was the one that broke.

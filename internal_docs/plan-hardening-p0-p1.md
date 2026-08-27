@@ -1,3 +1,5 @@
+> **ARCHIVAL NOTE** — P0+P1 hardening plan (2026-08-27). All stages completed and merged in PR #26. For the current state, see `progress.md`. Kept for historical reference.
+
 # NetScan Production Hardening Plan — P0 + P1
 
 **Created:** 2026-08-27

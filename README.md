@@ -43,6 +43,12 @@ The dashboard is the main interface. Everything you need is one click away.
 - **LDAP/AD auth** — corporate credentials for dashboard, API keys for scripts
 - **Rate limiting** — configurable per-IP limit via slowapi
 - **Structured logging** — JSON or text, configurable level
+- **API key lifecycle** — soft-revoke, rename, reassign role, set expiry
+- **Correlation IDs** — `X-Request-ID` header on every request, in access logs
+- **Prometheus metrics** — `/metrics` endpoint with scan/webhook counters
+- **Retention policy** — configurable pruning of old scan jobs and IP history
+- **Overlapping-subnet detection** — rejects CIDRs that overlap with existing subnets
+- **Postgres support** — tested in CI, works via `DATABASE_URL`
 
 ## Configuration
 
@@ -73,6 +79,8 @@ Environment variables or `.env` file:
 | `LDAP_GROUP_SEARCH_FILTER` | `(member={user_dn})` | Group membership filter |
 | `LDAP_START_TLS` | `false` | Use StartTLS |
 | `LDAP_CA_CERT_FILE` | *(empty)* | CA cert for LDAP TLS |
+| `DISABLE_BOOTSTRAP` | `false` | Disable HTTP bootstrap endpoint |
+| `RETENTION_DAYS` | `90` | Prune old scan jobs and IP history (0 = disabled) |
 
 ## Docker
 
@@ -124,7 +132,7 @@ volumes:
 
 </details>
 
-**Single-instance constraint:** NetScan uses SQLite (WAL mode) and an in-process scheduler. Run exactly one worker and one container per database — multiple instances will duplicate scheduled scans and corrupt concurrent writes. For multi-instance deployments, switch to PostgreSQL (not yet supported) and externalize the scheduler.
+**Single-instance constraint:** NetScan uses SQLite (WAL mode) and an in-process scheduler. Run exactly one worker and one container per database — multiple instances will duplicate scheduled scans and corrupt concurrent writes. For production, use PostgreSQL (`DATABASE_URL=postgresql://...`) — tested in CI.
 
 ## CLI
 
@@ -139,6 +147,16 @@ netscan login                          # LDAP auth → create API key
 ## API
 
 Full REST API with OpenAPI docs. [API Reference →](docs/api.md)
+
+Key endpoints:
+- `POST /api/v1/subnets` — create subnet (overlapping CIDRs rejected)
+- `POST /api/v1/subnets/{id}/scan` — trigger scan
+- `GET /api/v1/ips/available` — find next available IPs for provisioning
+- `GET /api/v1/ips/{ip}` — inspect IP (accepts optional `subnet_id` param)
+- `PATCH /api/v1/auth/keys/{id}` — rename, reassign role, or set expiry
+- `DELETE /api/v1/auth/keys/{id}` — soft-revoke (sets `revoked_at`, never hard-deletes)
+- `GET /metrics` — Prometheus-format counters
+- `GET /health` — database + nmap + scheduler status
 
 ## Development
 
