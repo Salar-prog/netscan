@@ -1,6 +1,7 @@
 import asyncio
 import ipaddress
 import uuid
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
@@ -15,6 +16,31 @@ from netscan.services.scan_service import check_active_scan, scan_service
 from netscan.services.scheduler_service import scheduler
 
 router = APIRouter(prefix="/subnets", tags=["Subnets"])
+
+
+class SubnetMatrixEntry(BaseModel):
+    ip: str
+    status: str
+    hostname: Optional[str]
+    mac_address: Optional[str]
+    mac_vendor: Optional[str]
+    open_ports_count: int
+    last_seen_at: Optional[datetime]
+    last_scanned_at: Optional[datetime]
+    consecutive_misses: int
+
+
+class SubnetMatrixResponse(BaseModel):
+    subnet_id: uuid.UUID
+    cidr: str
+    name: str
+    total_hosts: int
+    matrix: List[SubnetMatrixEntry]
+
+
+class SubnetScanTriggered(BaseModel):
+    message: str
+    scan_job_id: uuid.UUID
 
 
 class SubnetCreate(BaseModel):
@@ -97,7 +123,7 @@ def list_subnets(
     return results
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Subnet, status_code=status.HTTP_201_CREATED)
 def create_subnet(
     payload: SubnetCreate,
     session: Session = Depends(get_session),
@@ -148,7 +174,7 @@ def create_subnet(
     return subnet
 
 
-@router.get("/{subnet_id}")
+@router.get("/{subnet_id}", response_model=Subnet)
 def get_subnet(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),
@@ -199,7 +225,7 @@ def delete_subnet(
     return None
 
 
-@router.get("/{subnet_id}/matrix")
+@router.get("/{subnet_id}/matrix", response_model=SubnetMatrixResponse)
 def get_subnet_ip_matrix(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),
@@ -255,7 +281,7 @@ def get_subnet_ip_matrix(
     }
 
 
-@router.post("/{subnet_id}/scan")
+@router.post("/{subnet_id}/scan", response_model=SubnetScanTriggered)
 async def trigger_subnet_scan(
     subnet_id: uuid.UUID,
     session: Session = Depends(get_session),

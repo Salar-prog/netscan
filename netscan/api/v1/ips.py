@@ -25,6 +25,14 @@ class IPReservationUpdate(BaseModel):
     hostname: Optional[str] = None
 
 
+class AvailableIPsResponse(BaseModel):
+    subnet_id: uuid.UUID
+    cidr: str
+    requested_count: int
+    available_ips: List[str]
+    count_returned: int
+
+
 @router.get("", response_model=List[Dict[str, Any]])
 def list_ips(
     subnet_id: Optional[uuid.UUID] = None,
@@ -67,7 +75,7 @@ def list_ips(
     ]
 
 
-@router.get("/available")
+@router.get("/available", response_model=AvailableIPsResponse)
 def get_available_ips(
     subnet_id: uuid.UUID,
     count: int = Query(default=1, ge=1, le=50),
