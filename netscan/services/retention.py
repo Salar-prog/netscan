@@ -27,6 +27,8 @@ def prune_old_records(session: Session, retention_days: int) -> dict:
     session.commit()
     logger.info(
         "Pruned %d history records and %d scan jobs older than %d days",
-        history_count, job_count, retention_days,
+        history_count,
+        job_count,
+        retention_days,
     )
     return {"history_deleted": history_count, "jobs_deleted": job_count}
