@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key
-from netscan.api.v1.router import NetScanException
+from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import ScanJob
 

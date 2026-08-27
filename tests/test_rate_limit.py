@@ -1,4 +1,3 @@
-import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from fastapi.responses import JSONResponse

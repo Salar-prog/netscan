@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
-from netscan.api.v1.router import NetScanException
+from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import IPAddress, IPStatus, Role, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr

@@ -1,6 +1,5 @@
 import hashlib
 import json
-import time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Request, Response
@@ -34,18 +33,14 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
         with Session(engine) as session:
             # Prune expired records
             cutoff = datetime.now(timezone.utc) - timedelta(seconds=_TTL_SECONDS)
-            expired = session.exec(
-                select(IdempotencyRecord).where(IdempotencyRecord.created_at < cutoff)
-            ).all()
+            expired = session.exec(select(IdempotencyRecord).where(IdempotencyRecord.created_at < cutoff)).all()
             for rec in expired:
                 session.delete(rec)
             if expired:
                 session.commit()
 
             existing = session.exec(
-                select(IdempotencyRecord).where(
-                    IdempotencyRecord.idempotency_key == idempotency_key
-                )
+                select(IdempotencyRecord).where(IdempotencyRecord.idempotency_key == idempotency_key)
             ).first()
 
             if existing:
@@ -57,7 +52,9 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                     )
                 # Different request with same key — conflict
                 return Response(
-                    content=json.dumps({"error_code": "IDEMPOTENCY_CONFLICT", "message": "Key reused with different request body."}),
+                    content=json.dumps(
+                        {"error_code": "IDEMPOTENCY_CONFLICT", "message": "Key reused with different request body."}
+                    ),
                     status_code=409,
                     media_type="application/json",
                 )

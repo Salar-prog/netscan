@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from netscan.api.auth import generate_api_key, get_current_api_key, require_role
-from netscan.api.v1.router import NetScanException
+from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import ApiKey, Role
 

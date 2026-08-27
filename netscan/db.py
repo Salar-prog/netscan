@@ -1,4 +1,4 @@
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlmodel import SQLModel, Session, create_engine
 from netscan.config import settings
 

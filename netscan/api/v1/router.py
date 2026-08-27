@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from netscan.api.errors import NetScanException, netscan_exception_handler
 from netscan.api.v1.auth_keys import router as auth_router
 from netscan.api.v1.ips import router as ips_router
 from netscan.api.v1.scans import router as scans_router
