@@ -135,6 +135,10 @@ def create_app(dashboard: bool = True) -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    from netscan.api.errors import NetScanException, netscan_exception_handler
+
+    app.add_exception_handler(NetScanException, netscan_exception_handler)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()],

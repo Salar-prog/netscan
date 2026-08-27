@@ -2,10 +2,11 @@ import ipaddress
 import secrets
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import AnyHttpUrl, BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
+from netscan.api.v1.router import NetScanException
 from netscan.config import settings
 from netscan.db import get_session
 from netscan.models import Role, Webhook
@@ -88,9 +89,10 @@ def create_webhook(
     current_user=Depends(require_role(Role.ADMIN, Role.OPERATOR)),
 ):
     if _is_url_blocked(str(payload.url)):
-        raise HTTPException(
+        raise NetScanException(
+            "SSRF_BLOCKED",
+            "Webhook URL points to a private/internal IP range. Use a public URL.",
             status_code=400,
-            detail="Webhook URL points to a private/internal IP range. Use a public URL.",
         )
 
     raw_secret = secrets.token_urlsafe(32)
@@ -124,7 +126,7 @@ def delete_webhook(
 ):
     wh = session.get(Webhook, webhook_id)
     if not wh:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+        raise NetScanException("WEBHOOK_NOT_FOUND", "Webhook not found", status_code=404)
     session.delete(wh)
     session.commit()
     return None
@@ -138,7 +140,7 @@ async def test_webhook(
 ):
     wh = session.get(Webhook, webhook_id)
     if not wh:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+        raise NetScanException("WEBHOOK_NOT_FOUND", "Webhook not found", status_code=404)
 
     test_data = {
         "test": True,

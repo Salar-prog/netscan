@@ -1,10 +1,11 @@
 import asyncio
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from netscan.api.auth import get_current_api_key, require_role
+from netscan.api.v1.router import NetScanException
 from netscan.db import get_session
 from netscan.models import IPAddress, IPStatus, Role, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
@@ -94,11 +95,11 @@ def create_subnet(
     try:
         norm_cidr = validate_and_normalize_cidr(payload.cidr)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise NetScanException("INVALID_CIDR", str(e), status_code=400)
 
     existing = session.exec(select(Subnet).where(Subnet.cidr == norm_cidr)).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"Subnet '{norm_cidr}' already exists.")
+        raise NetScanException("SUBNET_EXISTS", f"Subnet '{norm_cidr}' already exists.", status_code=400)
 
     subnet = Subnet(
         cidr=norm_cidr,
@@ -126,7 +127,7 @@ def get_subnet(
 ):
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
     return subnet
 
 
@@ -139,7 +140,7 @@ def update_subnet(
 ):
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
 
     update_dict = payload.model_dump(exclude_unset=True)
     for k, v in update_dict.items():
@@ -161,7 +162,7 @@ def delete_subnet(
 ):
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
 
     scheduler.remove_subnet_job(subnet.id)
     session.delete(subnet)
@@ -178,7 +179,7 @@ def get_subnet_ip_matrix(
     """Return all IP addresses in the subnet with current real-time state for visual grid."""
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
 
     all_hosts = expand_cidr_hosts(subnet.cidr)
     existing_ips = session.exec(select(IPAddress).where(IPAddress.subnet_id == subnet.id)).all()
@@ -234,13 +235,14 @@ async def trigger_subnet_scan(
     """Trigger an immediate asynchronous scan job for this subnet."""
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
 
     active_job = check_active_scan(session, subnet.id)
     if active_job:
-        raise HTTPException(
+        raise NetScanException(
+            "SCAN_ALREADY_RUNNING",
+            f"Scan already in progress for subnet {subnet.cidr} (job {active_job.id}).",
             status_code=409,
-            detail=f"Scan already in progress for subnet {subnet.cidr} (job {active_job.id}).",
         )
 
     job = ScanJob(

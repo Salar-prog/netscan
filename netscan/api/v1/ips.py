@@ -1,9 +1,10 @@
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 from netscan.api.auth import get_current_api_key, require_role
+from netscan.api.v1.router import NetScanException
 from netscan.db import get_session
 from netscan.models import (
     EventType,
@@ -76,7 +77,7 @@ def get_available_ips(
     """Retrieve the next K available IPs in a subnet for automated deployment / provisioning."""
     subnet = session.get(Subnet, subnet_id)
     if not subnet:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise NetScanException("SUBNET_NOT_FOUND", "Subnet not found", status_code=404)
 
     from netscan.scanner.cidr import expand_cidr_hosts
 
@@ -113,7 +114,7 @@ def get_ip_detail(
 ):
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
     if not rec:
-        raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not tracked yet.")
+        raise NetScanException("IP_NOT_FOUND", f"IP '{ip_address}' not tracked yet.", status_code=404)
     return rec
 
 
@@ -127,7 +128,7 @@ def update_ip_reservation(
     """Reserve, unreserve, or attach custom metadata to an IP."""
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
     if not rec:
-        raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not found.")
+        raise NetScanException("IP_NOT_FOUND", f"IP '{ip_address}' not found.", status_code=404)
 
     old_status = rec.status
     now = utc_now()
@@ -170,7 +171,7 @@ def get_ip_history(
 ):
     rec = session.exec(select(IPAddress).where(IPAddress.ip == ip_address.strip())).first()
     if not rec:
-        raise HTTPException(status_code=404, detail=f"IP '{ip_address}' not found.")
+        raise NetScanException("IP_NOT_FOUND", f"IP '{ip_address}' not found.", status_code=404)
 
     history = session.exec(
         select(IPHistory).where(IPHistory.ip_address_id == rec.id).order_by(IPHistory.timestamp.desc())
