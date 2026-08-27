@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Key expiry** — API keys support `expires_at` field; expired keys rejected at auth layer
+- **Retention policy** — `RETENTION_DAYS` setting (default 90); old ip_history and scan_jobs pruned on startup
+- **Metrics endpoint** — `/metrics` exposes basic Prometheus-format counters (subnets, IPs, scans)
+- **Scoped IP lookup** — `GET /ips/{ip}` accepts optional `subnet_id` query parameter
+- **Scheduler health** — `/health` now verifies scheduler liveness
+- **Bootstrap kill-switch** — `DISABLE_BOOTSTRAP` setting to disable HTTP bootstrap endpoint
+
+### Fixed
+
+- **Zombie process** — `await process.wait()` after `process.kill()` in scanner
+- **N+1 subnet listing** — replaced 4-per-subnet count queries with single GROUP BY
+- **Proxy-aware access logs** — access log middleware uses shared `get_client_ip()` from rate limiter
+- **Services init shadow** — removed singleton re-exports that shadowed module names
+- **Version duplication** — `importlib.metadata.version()` replaces hardcoded string
+- **Decorative lockfile removed** — `requirements-lock.txt` deleted (CI/Docker use pyproject.toml bounds)
+- **Webhook dispatch coverage** — new test exercises scan→webhook dispatch path end-to-end
+
+### Changed
+
+- `DISABLE_BOOTSTRAP` defaults to `false`; set `true` to disable HTTP bootstrap endpoint
+- `RETENTION_DAYS` defaults to `90`; set `0` to disable pruning
+- Single-instance constraint documented in README
+
+### Added
+
 - **Shared SSRF validation** — single `is_url_blocked()` function in `webhooks_check.py` protects both API and dashboard webhook creation
 - **LDAP injection fix** — username escaped with `ldap.filter.escape_filter_chars()` before LDAP bind
 - **Async LDAP** — `ldap_authenticate()` wrapped in `asyncio.to_thread()` to avoid blocking the event loop; 10s network timeout
