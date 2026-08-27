@@ -1,6 +1,7 @@
 import os
 
 os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("RATE_LIMIT_DEFAULT", "10000/minute")
 
 import pytest
 from fastapi.testclient import TestClient

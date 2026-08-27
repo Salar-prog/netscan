@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from netscan.api.v1.router import api_v1_router
 from netscan.config import settings
@@ -138,6 +139,7 @@ def create_app(dashboard: bool = True) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(AccessLogMiddleware)
 
     # Mount API router (always loaded)
