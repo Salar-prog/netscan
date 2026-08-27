@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from netscan.api.auth import hash_key
 from netscan.config import settings
 from netscan.db import get_session
+from netscan.webhooks_check import is_url_blocked
 from netscan.models import (
     ApiKey,
     EventType,
@@ -521,6 +522,9 @@ def web_revoke_key(key_id: uuid.UUID, request: Request, session: Session = Depen
 def web_create_webhook(request: Request, payload: WebhookCreate, session: Session = Depends(get_session)):
     user = _require_dashboard_user(request, session)
     _require_role(user, Role.ADMIN, Role.OPERATOR)
+
+    if is_url_blocked(str(payload.url)):
+        raise HTTPException(status_code=400, detail="Webhook URL targets a blocked private/metadata address")
 
     import secrets as _secrets
 
