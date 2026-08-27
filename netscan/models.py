@@ -175,3 +175,10 @@ class IdempotencyRecord(SQLModel, table=True):
     status_code: int
     response_body: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class BootstrapLock(SQLModel, table=True):
+    __tablename__ = "bootstrap_lock"
+
+    id: int = Field(default=1, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now)

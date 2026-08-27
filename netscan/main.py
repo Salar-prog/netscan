@@ -131,17 +131,27 @@ async def lifespan(app: FastAPI):
 
         with _Session(engine) as _session:
             prune_old_records(_session, settings.RETENTION_DAYS)
-    logger.info("Starting NetScan scheduler...")
-    scheduler.start()
+    if settings.SCHEDULER_ENABLED:
+        logger.info("Starting NetScan scheduler...")
+        scheduler.start()
+    else:
+        logger.info("Scheduler disabled (SCHEDULER_ENABLED=false).")
     yield
-    logger.info("Stopping NetScan scheduler...")
-    scheduler.shutdown()
-    from netscan.services.scan_service import _webhook_tasks
+    if settings.SCHEDULER_ENABLED:
+        logger.info("Stopping NetScan scheduler...")
+        scheduler.shutdown()
+    import asyncio
+
+    from netscan.services.scan_service import _scan_tasks, _webhook_tasks
+
+    if _scan_tasks:
+        logger.info("Waiting for %d in-flight scan(s)...", len(_scan_tasks))
+        done, pending = await asyncio.wait(_scan_tasks, timeout=30)
+        if pending:
+            logger.warning("%d scan(s) still running after timeout; will be recovered on next startup.", len(pending))
 
     if _webhook_tasks:
         logger.info("Draining %d in-flight webhook tasks...", len(_webhook_tasks))
-        import asyncio
-
         await asyncio.gather(*_webhook_tasks, return_exceptions=True)
         logger.info("All webhook tasks drained.")
 

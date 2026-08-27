@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Request, Response
+from sqlalchemy.exc import IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlmodel import Session, select
 
@@ -85,7 +86,19 @@ class IdempotencyKeyMiddleware(BaseHTTPMiddleware):
                     response_body=resp_json,
                 )
                 session.add(record)
-                session.commit()
+                try:
+                    session.commit()
+                except IntegrityError:
+                    session.rollback()
+                    winner = session.exec(
+                        select(IdempotencyRecord).where(IdempotencyRecord.idempotency_key == idempotency_key)
+                    ).first()
+                    if winner:
+                        return Response(
+                            content=json.dumps(winner.response_body, default=str),
+                            status_code=winner.status_code,
+                            media_type="application/json",
+                        )
 
             return Response(
                 content=resp_body,

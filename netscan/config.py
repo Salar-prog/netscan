@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Bootstrap kill-switch: set to true to disable the HTTP bootstrap endpoint
     DISABLE_BOOTSTRAP: bool = False
 
+    # Scheduler: set to false on all but one replica in multi-instance deployments
+    SCHEDULER_ENABLED: bool = True
+
     # Retention: days to keep ip_history and scan_jobs (0 = no pruning)
     RETENTION_DAYS: int = 90
 

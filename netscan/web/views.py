@@ -27,7 +27,7 @@ from netscan.models import (
     utc_now,
 )
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
-from netscan.services.scan_service import scan_service
+from netscan.services.scan_service import _scan_tasks, _track_scan_task, scan_service
 from netscan.services.scheduler_service import scheduler
 from netscan.web.session import COOKIE_NAME, create_session_cookie, validate_session_cookie
 
@@ -480,7 +480,9 @@ def web_trigger_scan(subnet_id: uuid.UUID, request: Request, session: Session = 
     session.commit()
     session.refresh(job)
 
-    asyncio.create_task(scan_service.execute_scan(job.id))
+    task = asyncio.create_task(scan_service.execute_scan(job.id))
+    task.add_done_callback(_track_scan_task)
+    _scan_tasks.add(task)
 
     if request.headers.get("hx-request"):
         return JSONResponse({"message": "Scan queued", "scan_job_id": str(job.id)})

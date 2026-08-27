@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from netscan.api.auth import generate_api_key, get_current_api_key, require_role
 from netscan.api.errors import NetScanException
 from netscan.db import get_session
-from netscan.models import ApiKey, Role
+from netscan.models import ApiKey, BootstrapLock, Role
 
 router = APIRouter(prefix="/auth/keys", tags=["API Keys"])
 
@@ -104,13 +104,14 @@ def bootstrap_first_key(
         is_active=True,
     )
     session.add(api_key_rec)
+    session.add(BootstrapLock(id=1))
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
         raise NetScanException(
             "BOOTSTRAP_RACE",
-            "Bootstrap race detected: another key was created simultaneously. Try again.",
+            "Another request already completed bootstrap. Use POST /api/v1/auth/keys with a valid key.",
             status_code=409,
         )
     session.refresh(api_key_rec)

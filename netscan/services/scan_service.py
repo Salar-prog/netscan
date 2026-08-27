@@ -20,12 +20,19 @@ from netscan.scanner.runner import NmapScanner
 from netscan.services.webhook_service import WebhookDispatcher
 
 _webhook_tasks: set = set()
+_scan_tasks: set = set()
 
 
 def _track_webhook_task(task: asyncio.Task) -> None:
     _webhook_tasks.discard(task)
     if task.exception():
         logger.error("Webhook task failed: %s", task.exception())
+
+
+def _track_scan_task(task: asyncio.Task) -> None:
+    _scan_tasks.discard(task)
+    if task.exception():
+        logger.error("Scan task failed: %s", task.exception())
 
 
 logger = logging.getLogger(__name__)
