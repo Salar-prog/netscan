@@ -8,7 +8,7 @@ from netscan.api.auth import get_current_api_key, require_role
 from netscan.db import get_session
 from netscan.models import IPAddress, IPStatus, Role, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
-from netscan.services.scan_service import scan_service
+from netscan.services.scan_service import check_active_scan, scan_service
 from netscan.services.scheduler_service import scheduler
 
 router = APIRouter(prefix="/subnets", tags=["Subnets"])
@@ -236,12 +236,7 @@ async def trigger_subnet_scan(
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")
 
-    active_job = session.exec(
-        select(ScanJob).where(
-            ScanJob.subnet_id == subnet.id,
-            ScanJob.status.in_([ScanStatus.QUEUED, ScanStatus.RUNNING]),
-        )
-    ).first()
+    active_job = check_active_scan(session, subnet.id)
     if active_job:
         raise HTTPException(
             status_code=409,

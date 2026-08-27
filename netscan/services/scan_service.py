@@ -47,6 +47,16 @@ def recover_stale_scan_jobs(session: Session, max_age_seconds: int = 600) -> int
     return count
 
 
+def check_active_scan(session: Session, subnet_id: uuid.UUID) -> ScanJob | None:
+    """Return the active ScanJob for a subnet, or None if no scan is in progress."""
+    return session.exec(
+        select(ScanJob).where(
+            ScanJob.subnet_id == subnet_id,
+            ScanJob.status.in_([ScanStatus.QUEUED, ScanStatus.RUNNING]),
+        )
+    ).first()
+
+
 class ScanService:
     """Executes network scans, evaluates state transitions, and records audit history."""
 
@@ -69,6 +79,16 @@ class ScanService:
                 session.add(job)
                 session.commit()
                 logger.error("ScanJob %s failed: subnet %s not found.", scan_job_id, job.subnet_id)
+                return
+
+            active = check_active_scan(session, job.subnet_id)
+            if active and active.id != job.id:
+                job.status = ScanStatus.FAILED
+                job.error_message = f"Skipped: active scan exists on subnet (job {active.id})"
+                job.completed_at = datetime.now(timezone.utc)
+                session.add(job)
+                session.commit()
+                logger.info("ScanJob %s skipped: active scan %s on subnet", scan_job_id, active.id)
                 return
 
             job.status = ScanStatus.RUNNING

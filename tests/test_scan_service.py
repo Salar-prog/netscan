@@ -263,3 +263,43 @@ async def test_recover_fresh_running_job_not_touched(db_engine):
     with Session(db_engine) as session:
         refreshed = session.get(ScanJob, job_id)
         assert refreshed.status == ScanStatus.RUNNING
+
+
+async def test_execute_scan_skips_when_active_scan_exists(db_engine, monkeypatch):
+    """execute_scan should mark the job FAILED if another scan is already active on the subnet."""
+    subnet_id = create_subnet(db_engine)
+
+    # Seed an existing RUNNING job
+    with Session(db_engine) as session:
+        active_job = ScanJob(
+            subnet_id=subnet_id,
+            status=ScanStatus.RUNNING,
+            triggered_by=TriggerType.MANUAL_API,
+        )
+        session.add(active_job)
+        session.commit()
+        session.refresh(active_job)
+        active_job_id = active_job.id
+
+    # Queue a second job for the same subnet
+    with Session(db_engine) as session:
+        job = ScanJob(
+            subnet_id=subnet_id,
+            status=ScanStatus.QUEUED,
+            triggered_by=TriggerType.MANUAL_API,
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        second_job_id = job.id
+
+    await scan_service.execute_scan(second_job_id)
+
+    with Session(db_engine) as session:
+        refreshed = session.get(ScanJob, second_job_id)
+        assert refreshed.status == ScanStatus.FAILED
+        assert "active scan exists" in refreshed.error_message
+
+        # Original RUNNING job unchanged
+        original = session.get(ScanJob, active_job_id)
+        assert original.status == ScanStatus.RUNNING

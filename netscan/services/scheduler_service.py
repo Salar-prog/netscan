@@ -72,6 +72,11 @@ class ScanScheduler:
     async def trigger_scheduled_scan(subnet_id: uuid.UUID) -> None:
         try:
             with Session(engine) as session:
+                from netscan.services.scan_service import check_active_scan
+
+                if check_active_scan(session, subnet_id):
+                    logger.info("Scheduled scan skipped: active scan exists on subnet %s", subnet_id)
+                    return
                 job = ScanJob(
                     subnet_id=subnet_id,
                     status=ScanStatus.QUEUED,
