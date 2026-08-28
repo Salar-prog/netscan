@@ -81,6 +81,7 @@ Environment variables or `.env` file:
 | `LDAP_CA_CERT_FILE` | *(empty)* | CA cert for LDAP TLS |
 | `DISABLE_BOOTSTRAP` | `false` | Disable HTTP bootstrap endpoint |
 | `RETENTION_DAYS` | `90` | Prune old scan jobs and IP history (0 = disabled) |
+| `SCHEDULER_ENABLED` | `true` | Enable in-process scheduler (set false on all but one replica) |
 
 ## Docker
 

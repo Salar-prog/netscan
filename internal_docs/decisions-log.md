@@ -189,3 +189,38 @@ A: Yes. Generate a UUID per request (`X-Request-ID` header). If the client sends
 
 **Q: Should we drain in-flight tasks on shutdown?**
 A: Yes. Track webhook tasks in a set with done-callbacks. On lifespan exit, `await asyncio.gather()` on all tracked tasks with `return_exceptions=True`. Bounded by asyncio default timeout. Prevents orphaned webhook deliveries on deploy.
+
+---
+
+## 2026-08-27: Bootstrap race condition fix (v3 audit)
+
+**Q: How to prevent two concurrent bootstrap calls from both succeeding?**
+A: Singleton lock row (`BootstrapLock` with `id=1`). First bootstrap call inserts the row alongside the API key. Second concurrent call hits `IntegrityError` on the PK collision → 409. Deterministic, not probabilistic like relying on `key_hash` uniqueness. Migration creates the table empty; first bootstrap call claims the row.
+
+---
+
+## 2026-08-27: Scan task self-registration (v3 audit)
+
+**Q: How to track in-flight scans for all callers (API, dashboard, scheduler)?**
+A: Self-register inside `execute_scan` via `asyncio.current_task()`. Covers all three callers at once. No caller-side changes needed. Removes redundant tracking from `subnets.py` and `views.py`.
+
+---
+
+## 2026-08-27: Shutdown ordering (v3 audit)
+
+**Q: Should scan drain run before or after scheduler.shutdown()?**
+A: Before. `scheduler.shutdown(wait=False)` cancels coroutine jobs immediately — `wait=True` doesn't actually wait for coroutine jobs. Drain `_scan_tasks` first (30s timeout), then shut down the scheduler. Unmatched scans are recovered by orphaned-job sweep on next startup.
+
+---
+
+## 2026-08-27: Scheduler multi-instance flag (v3 audit)
+
+**Q: How to allow running multiple replicas without duplicate scheduled scans?**
+A: `SCHEDULER_ENABLED` flag (default true). Operators running N replicas set it to false on all but one. Manual, honest, no new dependencies. External trigger (cron/k8s CronJob) is the better long-term answer for elastic replicas.
+
+---
+
+## 2026-08-27: Migration Postgres compatibility (v4 audit)
+
+**Q: Why did the bootstrap_lock migration fail on Postgres?**
+A: `server_default=sa.text("(datetime('now'))")` uses SQLite syntax. Postgres doesn't have `datetime()` function. Fixed to `sa.func.now()` which generates the correct SQL for both dialects.

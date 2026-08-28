@@ -19,10 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Soft key revoke** — `DELETE /auth/keys/{id}` sets `revoked_at` instead of hard-delete
 - **Key PATCH endpoint** — `PATCH /auth/keys/{id}` to rename, reassign role, or set expiry
 - **Correlation IDs** — `X-Request-ID` header generated per request, included in access logs
-- **Graceful shutdown** — lifespan drains in-flight webhook tasks before exit
+- **Graceful shutdown** — lifespan drains in-flight webhook and scan tasks before exit
 - **Typed response models** — `SubnetMatrixResponse`, `SubnetScanTriggered`, `AvailableIPsResponse` on key routes
 - **Postgres CI** — GitHub Actions runs full test suite against Postgres 16
 - **Dual-database test fixture** — conftest detects `DATABASE_URL`, supports SQLite + Postgres
+- **Scheduler flag** — `SCHEDULER_ENABLED` setting (default true); set false on all but one replica in multi-instance deployments
 
 ### Fixed
 
@@ -33,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Version duplication** — `importlib.metadata.version()` replaces hardcoded string
 - **Decorative lockfile removed** — `requirements-lock.txt` deleted (CI/Docker use pyproject.toml bounds)
 - **Webhook dispatch coverage** — new test exercises scan→webhook dispatch path end-to-end
+- **Bootstrap race condition** — `BootstrapLock` singleton row prevents concurrent bootstrap calls from both succeeding
+- **Idempotency race condition** — concurrent insert with same key now catches `IntegrityError` and returns winner's response instead of 500
+- **Scan task drain** — in-flight scans self-register via `asyncio.current_task()`; drain runs before scheduler shutdown with 30s bounded timeout
+- **Migration Postgres compatibility** — fixed `server_default` from SQLite-specific `datetime('now')` to `sa.func.now()`; removed poisoned seed INSERT that broke bootstrap on fresh installs
 
 ### Changed
 

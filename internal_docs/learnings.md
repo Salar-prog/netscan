@@ -203,3 +203,43 @@ Gotchas, false starts, and things that didn't work and why.
 **Fix:** Updated the assertion to include the new fields. Tests that assert exact response shapes are brittle under schema evolution — prefer checking "key not in response" (for secret fields) over "exactly these keys" (for non-secret fields).
 
 **Lesson:** When adding response model fields, grep for exact-set assertions in tests. The `key_hash not in key` assertion was correct; the `set(keys[0].keys()) == {...}` assertion was the one that broke.
+
+---
+
+## Migration seed rows poison bootstrap
+
+**Problem:** A migration created a `bootstrap_lock` table and seeded it with `INSERT INTO bootstrap_lock (id) VALUES (1)`. Since Alembic migrations run on every startup, the row existed before anyone called bootstrap. The bootstrap endpoint tried to insert the same row → `IntegrityError` → every bootstrap call returned 409 on fresh installs.
+
+**Fix:** Remove the seed INSERT from the migration. The table starts empty; the first bootstrap call claims the row. A follow-up migration deletes the poisoned row for existing deployments.
+
+**Lesson:** Migrations that seed data create implicit state that persists across restarts. If the seed row is meant to be claimed by application logic, the migration must not pre-create it — the application must be the first writer.
+
+---
+
+## SQLite-specific SQL in Alembic migrations
+
+**Problem:** Migration used `server_default=sa.text("(datetime('now'))")` which is SQLite syntax. On Postgres, this failed with `function datetime(unknown) does not exist`.
+
+**Fix:** Use `sa.func.now()` which generates dialect-appropriate SQL (SQLite: `datetime('now')`, Postgres: `now()`).
+
+**Lesson:** Alembic migrations run against whatever database the app uses. Always use SQLAlchemy's portable functions (`sa.func.now()`, `sa.func.current_timestamp()`) instead of raw SQL dialects.
+
+---
+
+## APScheduler cancels coroutine jobs on shutdown
+
+**Problem:** `scheduler.shutdown(wait=True)` is documented as "wait for currently executing jobs to finish" — but for coroutine jobs (not thread-pool sync jobs), it cancels them immediately with `CancelledError`. In-flight scans were killed before the drain block could run.
+
+**Fix:** Call `scheduler.shutdown(wait=False)` and drain scan tasks before calling it. The app's own `_scan_tasks` drain is the mechanism that actually waits; `wait=True` is misleading for coroutine executors.
+
+**Lesson:** APScheduler's `wait=True` only works for thread-pool jobs. For coroutine jobs, `shutdown()` cancels them. Don't rely on `wait=True` as a drain mechanism for async jobs — handle it yourself.
+
+---
+
+## Scan task tracking must be self-registering
+
+**Problem:** Tracking in-flight scan tasks at the call site (`_scan_tasks.add(task)` in `subnets.py` and `views.py`) missed the scheduler path. APScheduler calls `execute_scan` directly without creating an `asyncio.Task` that the app can intercept.
+
+**Fix:** Self-register inside `execute_scan` via `asyncio.current_task()`. Covers all callers (API, dashboard, scheduler) at once. No caller-side changes needed.
+
+**Lesson:** When tracking async work for graceful shutdown, register inside the work itself, not at each caller. Callers are easily missed; the work function is always the same.

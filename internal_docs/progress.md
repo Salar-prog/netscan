@@ -398,3 +398,20 @@ Update all docs with Phase 10 info, LDAP config, and QA test plan.
 | P0+P1 Hardening | COMPLETE | 131/131 pass, PR #26 merged |
 | P2 Hardening | COMPLETE | 132/132 pass, PR #27 merged |
 | Production Polish | COMPLETE | 133/133 pass, 6 commits on main |
+
+---
+
+## V3+V4 Audit Fixes (COMPLETE)
+
+**Status:** DONE — pushed to main, CI green
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Bootstrap lock row | Done | `BootstrapLock` singleton table; first bootstrap call inserts row; concurrent calls collide on PK → 409 |
+| Bootstrap migration fix | Done | Removed poisoned seed INSERT; new migration deletes stale row for existing deployments; fixed `server_default` to `sa.func.now()` for Postgres |
+| Idempotency race handling | Done | `session.commit()` wrapped in `try/except IntegrityError`; returns winner's stored response instead of 500 |
+| Scan self-registration | Done | `execute_scan` registers via `asyncio.current_task()`; covers API, dashboard, and scheduler-triggered scans |
+| Scan task drain | Done | `_scan_tasks` set tracks in-flight scans; drained with 30s timeout before scheduler shutdown |
+| Shutdown ordering | Done | Drain `_scan_tasks` before `scheduler.shutdown(wait=False)` (scheduler cancels coroutine jobs immediately) |
+| Scheduler flag | Done | `SCHEDULER_ENABLED` setting gates scheduler start/stop; set false on all but one replica |
+| Migration Postgres compat | Done | `server_default=sa.func.now()` replaces SQLite-specific `datetime('now')` |
