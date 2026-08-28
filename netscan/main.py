@@ -137,9 +137,6 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Scheduler disabled (SCHEDULER_ENABLED=false).")
     yield
-    if settings.SCHEDULER_ENABLED:
-        logger.info("Stopping NetScan scheduler...")
-        scheduler.shutdown()
     import asyncio
 
     from netscan.services.scan_service import _scan_tasks, _webhook_tasks
@@ -149,6 +146,10 @@ async def lifespan(app: FastAPI):
         done, pending = await asyncio.wait(_scan_tasks, timeout=30)
         if pending:
             logger.warning("%d scan(s) still running after timeout; will be recovered on next startup.", len(pending))
+
+    if settings.SCHEDULER_ENABLED:
+        logger.info("Stopping NetScan scheduler...")
+        scheduler.shutdown(wait=False)
 
     if _webhook_tasks:
         logger.info("Draining %d in-flight webhook tasks...", len(_webhook_tasks))

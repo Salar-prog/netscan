@@ -22,9 +22,9 @@ class ScanScheduler:
             job_count = len(self.scheduler.get_jobs())
             logger.info("Scheduler started", extra={"extra_data": {"job_count": job_count}})
 
-    def shutdown(self) -> None:
+    def shutdown(self, **kwargs) -> None:
         if self.scheduler.running:
-            self.scheduler.shutdown()
+            self.scheduler.shutdown(**kwargs)
             logger.info("Scheduler stopped.")
 
     def sync_all_subnet_jobs(self) -> None:

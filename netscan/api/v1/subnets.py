@@ -12,7 +12,7 @@ from netscan.api.errors import NetScanException
 from netscan.db import get_session
 from netscan.models import IPAddress, IPStatus, Role, ScanJob, ScanStatus, Subnet, TriggerType, utc_now
 from netscan.scanner.cidr import expand_cidr_hosts, get_subnet_metadata, validate_and_normalize_cidr
-from netscan.services.scan_service import _scan_tasks, _track_scan_task, check_active_scan, scan_service
+from netscan.services.scan_service import check_active_scan, scan_service
 from netscan.services.scheduler_service import scheduler
 
 router = APIRouter(prefix="/subnets", tags=["Subnets"])
@@ -310,9 +310,7 @@ async def trigger_subnet_scan(
     session.refresh(job)
 
     # Launch background async scan
-    task = asyncio.create_task(scan_service.execute_scan(job.id))
-    task.add_done_callback(_track_scan_task)
-    _scan_tasks.add(task)
+    asyncio.create_task(scan_service.execute_scan(job.id))
     return {
         "message": f"Scan queued for subnet {subnet.cidr}",
         "scan_job_id": job.id,

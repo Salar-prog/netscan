@@ -87,6 +87,10 @@ class ScanService:
 
     async def execute_scan(self, scan_job_id: uuid.UUID) -> None:
         """Background worker method to execute a scan job."""
+        task = asyncio.current_task()
+        if task is not None:
+            _scan_tasks.add(task)
+            task.add_done_callback(_track_scan_task)
         scan_start = time.monotonic()
         with Session(engine) as session:
             job = session.get(ScanJob, scan_job_id)

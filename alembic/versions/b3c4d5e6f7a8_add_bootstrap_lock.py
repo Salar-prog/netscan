@@ -26,13 +26,11 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("(datetime('now'))"),
+            server_default=sa.func.now(),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    # Insert the singleton row — the lock exists once the table does
-    op.execute("INSERT INTO bootstrap_lock (id) VALUES (1)")
 
 
 def downgrade() -> None:
